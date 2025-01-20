@@ -1,5 +1,5 @@
-import { router, authedProcedure, procedure } from "@/trpc";
 import { z } from "zod";
+import { authedProcedure, procedure, router } from "@/trpc";
 
 export const appRouter = router({
     hello: procedure.input(z.string()).query(({ input }) => {

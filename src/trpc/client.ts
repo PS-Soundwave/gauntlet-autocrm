@@ -1,8 +1,7 @@
+import { isServer, QueryClient } from "@tanstack/react-query";
 import { createTRPCReact } from "@trpc/react-query";
-import { AppRouter } from "./routers/app";
-import { isServer } from "@tanstack/react-query";
-import { QueryClient } from "@tanstack/react-query";
 import { makeQueryClient } from "./query-client";
+import { AppRouter } from "./routers/app";
 
 export const trpc = createTRPCReact<AppRouter>();
 
@@ -12,8 +11,8 @@ export const getQueryClient = () => {
     if (isServer) {
         return makeQueryClient();
     }
-    
+
     browserQueryClient ??= makeQueryClient();
 
     return browserQueryClient;
-}   
+};
