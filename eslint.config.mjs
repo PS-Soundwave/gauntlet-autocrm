@@ -59,7 +59,6 @@ const config = [
                     ignoreClassWithStaticInitBlock: true
                 }
             ],
-            "no-use-before-define": "error",
             "no-useless-assignment": "error",
             "no-useless-backreference": "error",
             "require-atomic-updates": "error",
@@ -68,15 +67,6 @@ const config = [
 
             "accessor-pairs": "error",
             "block-scoped-var": "error",
-            camelcase: [
-                "error",
-                {
-                    allow: [
-                        "unstable_httpBatchStreamLink",
-                        "unstable_httpSubscriptionLink"
-                    ]
-                }
-            ],
             "consistent-return": [
                 "error",
                 { treatUndefinedAsUnspecified: true }
@@ -140,7 +130,6 @@ const config = [
             "no-shadow-restricted-names": "error",
             "no-throw-literal": "error",
             "no-undef-init": "error",
-            "no-undefined": "error",
             "no-unneeded-ternary": "error",
             "no-unused-expressions": ["error", { enforceForJSX: true }],
             "no-unused-labels": "error",
@@ -178,7 +167,9 @@ const config = [
             "require-unicode-regexp": ["error", { requireFlag: "v" }],
             "require-yield": "error",
             "vars-on-top": "error",
-            yoda: ["error", "never", { exceptRange: true }]
+            yoda: ["error", "never", { exceptRange: true }],
+
+            "@typescript-eslint/no-explicit-any": "off"
         }
     }
 ];
