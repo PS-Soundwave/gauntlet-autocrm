@@ -132,8 +132,19 @@ export default function TicketContent({
                                     Priority
                                 </label>
                                 <Select.Root
-                                    value={pendingPriority ?? ticket.priority}
-                                    onValueChange={setPendingPriority}
+                                    value={pendingPriority ?? "null"}
+                                    onValueChange={(s) => {
+                                        if (s === "null") {
+                                            setPendingPriority(null);
+                                        } else if (
+                                            s === "low" ||
+                                            s === "medium" ||
+                                            s === "high" ||
+                                            s === "urgent"
+                                        ) {
+                                            setPendingPriority(s);
+                                        }
+                                    }}
                                 >
                                     <Select.Trigger className="inline-flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-100">
                                         <Select.Value placeholder="Select priority..." />

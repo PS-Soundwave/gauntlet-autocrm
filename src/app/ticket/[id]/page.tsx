@@ -6,7 +6,7 @@ import { trpc } from "@/trpc/server";
 export default async function CustomerTicketPage({
     params
 }: {
-    params: { id: string };
+    params: Promise<{ id: string }>;
 }) {
     const ticket = await trpc.customer
         .readTicket((await params).id)
