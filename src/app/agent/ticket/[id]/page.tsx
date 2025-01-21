@@ -1,20 +1,21 @@
 import { TRPCError } from "@trpc/server";
 import { redirect } from "next/navigation";
-import CustomerTicketContent from "@/components/ticket/CustomerTicketContent";
+import AgentTicketContent from "@/components/ticket/AgentTicketContent";
 import { trpc } from "@/trpc/server";
 
-export default async function CustomerTicketPage({
+export default async function TicketPage({
     params
 }: {
     params: { id: string };
 }) {
-    const ticket = await trpc.customer
+    const ticket = await trpc.agent
         .readTicket((await params).id)
         .catch((error) => {
             if (error instanceof TRPCError) {
                 if (error.code === "UNAUTHORIZED") {
                     redirect("/sign-in");
                 }
+                console.log(error.code);
                 // TODO: For FORBIDDEN or NOT_FOUND, return null to show blank page
                 return null;
             }
@@ -23,8 +24,8 @@ export default async function CustomerTicketPage({
         });
 
     if (!ticket) {
-        return null;
+        return null; // Return blank page for forbidden/not found
     }
 
-    return <CustomerTicketContent ticket={ticket} />;
+    return <AgentTicketContent ticket={ticket} />;
 }

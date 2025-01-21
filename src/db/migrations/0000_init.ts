@@ -1,4 +1,5 @@
 import { Kysely, sql } from "kysely";
+import { Type } from "../extensions/with_schemable_types";
 
 export const up = async (db: Kysely<any>) => {
     await db.schema.createType("user_role").asEnum(["agent"]).execute();
@@ -39,8 +40,12 @@ export const up = async (db: Kysely<any>) => {
             col.notNull().defaultTo(sql`now()`)
         )
         .addColumn("author", "text", (col) => col.notNull())
-        .addColumn("status", sql`ticket_status`, (col) => col.notNull())
-        .addColumn("priority", sql`ticket_priority`, (col) => col.notNull())
+        .addColumn("status", sql`${new Type("ticket_status")}`, (col) =>
+            col.notNull()
+        )
+        .addColumn("priority", sql`${new Type("ticket_priority")}`, (col) =>
+            col.notNull()
+        )
         .execute();
 
     await db.schema
@@ -58,7 +63,9 @@ export const up = async (db: Kysely<any>) => {
             col.notNull().defaultTo(sql`now()`)
         )
         .addColumn("author", "text", (col) => col.notNull())
-        .addColumn("type", sql`ticket_message_type`, (col) => col.notNull())
+        .addColumn("type", sql`${new Type("ticket_message_type")}`, (col) =>
+            col.notNull()
+        )
         .addColumn("content", "text", (col) => col.notNull())
         .execute();
 

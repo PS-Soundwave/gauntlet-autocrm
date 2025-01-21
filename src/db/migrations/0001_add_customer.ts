@@ -15,12 +15,14 @@ export const down = async () => {
         .alterTable("users")
         .alterColumn("role", (col) =>
             col.setDataType(
-                sql`user_role_new USING "role"::text::"user_role_new"`
+                sql`${new Type("user_role_new")} USING "role"::text::${new Type("user_role_new")}`
             )
         )
         .execute();
 
     await db.schema.dropType("user_role").execute();
 
-    await sql`ALTER TYPE "user_role_new" RENAME TO "user_role"`.execute(db);
+    await sql`ALTER TYPE ${new Type("user_role_new")} RENAME TO "user_role"`.execute(
+        db
+    );
 };

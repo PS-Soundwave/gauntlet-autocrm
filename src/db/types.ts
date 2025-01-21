@@ -19,13 +19,13 @@ export interface TicketTable {
     serial: Generated<number>;
     createdAt: Generated<Date>;
     author: string;
-    status: "new" | "open" | "in_progress" | "pending" | "closed";
+    status: "open" | "in_progress" | "pending" | "closed";
     priority: "low" | "medium" | "high" | "urgent" | null;
 }
 
 export interface TicketMessagesTable {
     id: Generated<string>;
-    serial: Generated<string>;
+    serial: string;
     createdAt: Generated<Date>;
     ticket: string;
     author: string;
