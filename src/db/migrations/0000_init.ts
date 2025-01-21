@@ -25,7 +25,9 @@ export const up = async (db: Kysely<any>) => {
         .addColumn("createdAt", "timestamptz", (col) =>
             col.notNull().defaultTo(sql`now()`)
         )
-        .addColumn("role", sql`user_role`, (col) => col.notNull())
+        .addColumn("role", sql`${new Type("user_role")}`, (col) =>
+            col.notNull()
+        )
         .execute();
 
     await db.schema
