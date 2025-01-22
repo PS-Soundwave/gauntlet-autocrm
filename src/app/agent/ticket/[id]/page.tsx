@@ -15,7 +15,7 @@ export default async function TicketPage({
                 if (error.code === "UNAUTHORIZED") {
                     redirect("/auth/sign-in");
                 }
-                console.log(error.code);
+
                 // TODO: For FORBIDDEN or NOT_FOUND, return null to show blank page
                 return null;
             }
