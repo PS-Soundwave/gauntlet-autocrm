@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import CreateTicketDialog from "@/components/CreateTicketDialog";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import StatusBadge from "@/components/shared/StatusBadge";
 import {
     Table,
     TableBody,

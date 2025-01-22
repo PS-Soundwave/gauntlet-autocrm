@@ -50,3 +50,13 @@ export type Message = {
     authorId: string;
     content: string;
 };
+
+export const userRoleSchema = z.enum(["agent", "customer", "admin"]);
+
+export type UserRole = z.infer<typeof userRoleSchema>;
+
+export type User = {
+    id: string;
+    name: string;
+    role: UserRole;
+};

@@ -8,10 +8,48 @@ import {
     CustomerTicket,
     CustomerTicketMetadata,
     ticketPrioritySchema,
-    ticketStatusSchema
+    ticketStatusSchema,
+    User,
+    userRoleSchema
 } from "@/api/types";
 import { db } from "@/db";
 import { authedProcedure, router } from "@/trpc";
+
+const adminProcedure = authedProcedure.use(async ({ ctx, next }) => {
+    const user = await db
+        .selectFrom("users")
+        .where("id", "=", ctx.user.id)
+        .selectAll()
+        .executeTakeFirstOrThrow(() => new TRPCError({ code: "UNAUTHORIZED" }));
+
+    if (user?.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+    }
+
+    return next({ ctx });
+});
+
+const adminRouter = router({
+    readAllUsers: adminProcedure.query<User[]>(async () => {
+        const users = await db
+            .selectFrom("users")
+            .select(["id", "name", "role"])
+            .execute();
+
+        return users;
+    }),
+    updateUserRole: adminProcedure
+        .input(z.object({ id: z.string(), role: userRoleSchema }))
+        .mutation(async ({ input }) => {
+            await db
+                .updateTable("users")
+                .set({ role: input.role })
+                .where("id", "=", input.id)
+                .executeTakeFirstOrThrow(
+                    () => new TRPCError({ code: "NOT_FOUND" })
+                );
+        })
+});
 
 const agentProcedure = authedProcedure.use(async ({ ctx, next }) => {
     const user = await db
@@ -20,7 +58,7 @@ const agentProcedure = authedProcedure.use(async ({ ctx, next }) => {
         .selectAll()
         .executeTakeFirstOrThrow(() => new TRPCError({ code: "UNAUTHORIZED" }));
 
-    if (user?.role !== "agent") {
+    if (user?.role !== "agent" && user?.role !== "admin") {
         throw new TRPCError({
             code: "FORBIDDEN"
         });
@@ -264,6 +302,7 @@ const customerRouter = router({
 });
 
 export const appRouter = router({
+    admin: adminRouter,
     agent: agentRouter,
     customer: customerRouter
 });

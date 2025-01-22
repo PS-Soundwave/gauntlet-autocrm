@@ -10,7 +10,7 @@ export interface Database {
 export interface UserTable {
     id: string;
     createdAt: Generated<Date>;
-    role: "agent" | "customer";
+    role: "agent" | "customer" | "admin";
     name: string;
 }
 
