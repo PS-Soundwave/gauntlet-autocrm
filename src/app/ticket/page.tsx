@@ -49,7 +49,7 @@ export default async function CustomerTicketsPage() {
                                     href={`/ticket/${ticket.ticketId}`}
                                     className="text-blue-600 hover:text-blue-800"
                                 >
-                                    View Ticket
+                                    {ticket.title}
                                 </Link>
                             </TableCell>
                             <TableCell>

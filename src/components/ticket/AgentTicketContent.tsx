@@ -6,8 +6,8 @@ import * as Select from "@radix-ui/react-select";
 import { useParams } from "next/navigation";
 import { useRef, useState } from "react";
 import type { AgentTicket, Message, TicketStatus } from "@/api/types";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Textarea } from "@/components/shared/Textarea";
+import StatusBadge from "@/components/shared/StatusBadge";
+import Textarea from "@/components/shared/Textarea";
 import SubmitButton from "@/components/SubmitButton";
 import { trpc } from "@/trpc/client";
 
@@ -80,7 +80,7 @@ export default function TicketContent({
             {/* Header Bar */}
             <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-6 py-2">
                 <h1 className="text-base font-medium text-gray-900">
-                    Ticket #{ticket.serial}
+                    Ticket #{ticket.serial} - {ticket.title}
                 </h1>
                 <StatusBadge status={ticket.status} />
             </div>

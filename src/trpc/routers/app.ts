@@ -40,6 +40,7 @@ const agentRouter = router({
                 "tickets.priority",
                 "tickets.serial",
                 "tickets.author as authorId",
+                "tickets.title",
                 "users.name as author"
             ])
             .orderBy("tickets.serial", "asc")
@@ -59,6 +60,7 @@ const agentRouter = router({
                     "tickets.priority",
                     "tickets.serial",
                     "tickets.author as authorId",
+                    "tickets.title",
                     "users.name as author",
                     jsonArrayFrom(
                         dbi
@@ -134,6 +136,7 @@ const customerRouter = router({
     createTicket: authedProcedure
         .input(
             z.object({
+                title: z.string(),
                 content: z.string()
             })
         )
@@ -143,6 +146,7 @@ const customerRouter = router({
                     .insertInto("tickets")
                     .values({
                         author: ctx.user.id,
+                        title: input.title,
                         status: "open",
                         priority: null
                     })
@@ -174,6 +178,7 @@ const customerRouter = router({
                     "tickets.id as ticketId",
                     "tickets.status",
                     "tickets.author as authorId",
+                    "tickets.title",
                     "users.name as author"
                 ])
                 .where("tickets.author", "=", ctx.user.id)
@@ -193,6 +198,7 @@ const customerRouter = router({
                 .where("tickets.author", "=", ctx.user.id)
                 .select((dbi) => [
                     "tickets.status",
+                    "tickets.title",
                     "tickets.author as authorId",
                     "users.name as author",
                     jsonArrayFrom(

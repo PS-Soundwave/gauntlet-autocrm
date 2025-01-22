@@ -19,6 +19,7 @@ export type TicketCommon = {
     status: TicketStatus;
     author: string;
     authorId: string;
+    title: string;
 };
 
 export type AgentTicketCommon = TicketCommon & {

@@ -1,8 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PriorityBadge } from "@/components/shared/PriorityBadge";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import PriorityBadge from "@/components/shared/PriorityBadge";
+import StatusBadge from "@/components/shared/StatusBadge";
 import {
     Table,
     TableBody,
@@ -39,12 +39,13 @@ export default async function TicketsPage() {
                 <TableHeader>
                     <tr>
                         <TableHeaderCell>Ticket #</TableHeaderCell>
+                        <TableHeaderCell>Title</TableHeaderCell>
                         <TableHeaderCell>Customer</TableHeaderCell>
                         <TableHeaderCell>Status</TableHeaderCell>
                         <TableHeaderCell>Priority</TableHeaderCell>
                     </tr>
                 </TableHeader>
-                <TableBody columnCount={4}>
+                <TableBody columnCount={5}>
                     {tickets.map((ticket) => (
                         <TableRow key={ticket.serial}>
                             <TableCell>
@@ -55,6 +56,7 @@ export default async function TicketsPage() {
                                     #{ticket.serial}
                                 </Link>
                             </TableCell>
+                            <TableCell>{ticket.title}</TableCell>
                             <TableCell>{ticket.author}</TableCell>
                             <TableCell>
                                 <StatusBadge status={ticket.status} />

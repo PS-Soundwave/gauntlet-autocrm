@@ -21,6 +21,7 @@ export interface TicketTable {
     author: string;
     status: "open" | "in_progress" | "pending" | "closed";
     priority: "low" | "medium" | "high" | "urgent" | null;
+    title: string;
 }
 
 export interface TicketMessagesTable {

@@ -11,17 +11,20 @@ import {
     DialogTitle,
     DialogTrigger
 } from "@/components/shared/Dialog";
-import { Textarea } from "@/components/shared/Textarea";
+import Input from "@/components/shared/Input";
+import Textarea from "@/components/shared/Textarea";
 import { trpc } from "@/trpc/client";
 
 export default function CreateTicketDialog() {
     const [open, setOpen] = useState(false);
+    const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
     const router = useRouter();
 
     const createTicket = trpc.customer.createTicket.useMutation({
         onSuccess: () => {
             setOpen(false);
+            setTitle("");
             setContent("");
             router.refresh();
         }
@@ -29,7 +32,7 @@ export default function CreateTicketDialog() {
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        await createTicket.mutate({ content });
+        await createTicket.mutate({ title, content });
     };
 
     return (
@@ -46,6 +49,15 @@ export default function CreateTicketDialog() {
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="mt-4">
+                    <Input
+                        value={title}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setTitle(e.target.value)
+                        }
+                        placeholder="Brief title for your issue..."
+                        className="mb-4"
+                        required
+                    />
                     <Textarea
                         value={content}
                         onChange={(e) => setContent(e.target.value)}

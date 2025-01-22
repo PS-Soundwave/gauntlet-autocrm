@@ -5,7 +5,10 @@ interface PriorityBadgeProps {
     className?: string;
 }
 
-export const PriorityBadge = ({ priority, className }: PriorityBadgeProps) => {
+export default function PriorityBadge({
+    priority,
+    className
+}: PriorityBadgeProps) {
     const getPriorityColor = (priority: string | null): string => {
         switch (priority) {
             case "urgent":
@@ -43,4 +46,4 @@ export const PriorityBadge = ({ priority, className }: PriorityBadgeProps) => {
             {formatPriority(priority)}
         </span>
     );
-};
+}

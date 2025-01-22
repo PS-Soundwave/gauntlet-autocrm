@@ -5,7 +5,7 @@ interface StatusBadgeProps {
     className?: string;
 }
 
-export const StatusBadge = ({ status, className }: StatusBadgeProps) => {
+export default function StatusBadge({ status, className }: StatusBadgeProps) {
     const getStatusColor = (status: string): string => {
         switch (status) {
             case "open":
@@ -41,4 +41,4 @@ export const StatusBadge = ({ status, className }: StatusBadgeProps) => {
             {formatStatus(status)}
         </span>
     );
-};
+}
