@@ -6,32 +6,10 @@ import * as Select from "@radix-ui/react-select";
 import { useParams } from "next/navigation";
 import { useRef, useState } from "react";
 import type { AgentTicket, Message, TicketStatus } from "@/api/types";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { Textarea } from "@/components/shared/Textarea";
 import SubmitButton from "@/components/SubmitButton";
 import { trpc } from "@/trpc/client";
-
-const formatStatus = (status: string) => {
-    const statusMap: Record<string, string> = {
-        open: "Open",
-        in_progress: "In Progress",
-        pending: "Pending",
-        closed: "Closed"
-    };
-    return statusMap[status] ?? status;
-};
-
-const getStatusColor = (status: string) => {
-    switch (status) {
-        case "open":
-        case "in_progress":
-            return "bg-rose-500 text-white";
-        case "pending":
-            return "bg-blue-500 text-white";
-        case "closed":
-            return "bg-zinc-500 text-white";
-        default:
-            return "bg-zinc-500 text-white";
-    }
-};
 
 export default function TicketContent({
     ticket: initialTicket
@@ -104,11 +82,7 @@ export default function TicketContent({
                 <h1 className="text-base font-medium text-gray-900">
                     Ticket #{ticket.serial}
                 </h1>
-                <div
-                    className={`rounded-md px-2 py-0.5 text-sm font-medium ${getStatusColor(ticket.status)}`}
-                >
-                    {formatStatus(ticket.status)}
-                </div>
+                <StatusBadge status={ticket.status} />
             </div>
 
             <div className="flex min-h-0 flex-1 divide-x divide-gray-200 bg-white">
@@ -256,11 +230,11 @@ export default function TicketContent({
                     </ScrollArea.Root>
 
                     <div className="border-t border-gray-200 bg-gray-50 p-4">
-                        <textarea
+                        <Textarea
                             ref={messageInputRef}
                             value={messageInput}
                             onChange={(e) => setMessageInput(e.target.value)}
-                            className="font-inherit min-h-[80px] w-full resize-none rounded-md border border-gray-300 bg-white p-3 text-sm leading-normal placeholder:text-gray-500 hover:border-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                            className="min-h-[80px] leading-normal"
                             placeholder="Type your message..."
                         />
                     </div>

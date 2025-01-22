@@ -1,5 +1,6 @@
 import { User } from "@supabase/supabase-js";
 import { initTRPC, TRPCError } from "@trpc/server";
+import superjson from "superjson";
 import { createClient } from "@/supabase/server";
 
 export type Context = {
@@ -15,7 +16,9 @@ export const createContext = async () => {
     return { user };
 };
 
-export const t = initTRPC.context<typeof createContext>().create();
+export const t = initTRPC.context<typeof createContext>().create({
+    transformer: superjson
+});
 
 export const router = t.router;
 

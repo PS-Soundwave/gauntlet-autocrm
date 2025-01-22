@@ -1,7 +1,16 @@
 import { TRPCError } from "@trpc/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import CreateTicketDialog from "@/components/ticket/CreateTicketDialog";
+import CreateTicketDialog from "@/components/CreateTicketDialog";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHeader,
+    TableHeaderCell,
+    TableRow
+} from "@/components/shared/Table";
 import { trpc } from "@/trpc/server";
 
 export default async function CustomerTicketsPage() {
@@ -25,67 +34,31 @@ export default async function CustomerTicketsPage() {
                 <h1 className="text-2xl font-bold">My Support Tickets</h1>
                 <CreateTicketDialog />
             </div>
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                                Ticket
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                                Status
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                        {tickets.map((ticket) => (
-                            <tr
-                                key={ticket.ticketId}
-                                className="hover:bg-gray-50"
-                            >
-                                <td className="whitespace-nowrap px-6 py-4">
-                                    <Link
-                                        href={`/ticket/${ticket.ticketId}`}
-                                        className="text-blue-600 hover:text-blue-800"
-                                    >
-                                        View Ticket
-                                    </Link>
-                                </td>
-                                <td className="whitespace-nowrap px-6 py-4">
-                                    <span
-                                        className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${getStatusColor(
-                                            ticket.status
-                                        )}`}
-                                    >
-                                        {formatStatus(ticket.status)}
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            <Table>
+                <TableHeader>
+                    <tr>
+                        <TableHeaderCell>Ticket</TableHeaderCell>
+                        <TableHeaderCell>Status</TableHeaderCell>
+                    </tr>
+                </TableHeader>
+                <TableBody columnCount={2}>
+                    {tickets.map((ticket) => (
+                        <TableRow key={ticket.ticketId}>
+                            <TableCell>
+                                <Link
+                                    href={`/ticket/${ticket.ticketId}`}
+                                    className="text-blue-600 hover:text-blue-800"
+                                >
+                                    View Ticket
+                                </Link>
+                            </TableCell>
+                            <TableCell>
+                                <StatusBadge status={ticket.status} />
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
         </div>
     );
 }
-
-const getStatusColor = (status: string): string => {
-    switch (status) {
-        case "open":
-        case "in_progress":
-            return "bg-rose-500 text-white";
-        case "pending":
-            return "bg-blue-500 text-white";
-        case "closed":
-            return "bg-zinc-500 text-white";
-        default:
-            return "bg-zinc-500 text-white";
-    }
-};
-
-const formatStatus = (status: string): string => {
-    return status
-        .split("_")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
-};

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/shared/Button";
 import { createClient } from "@/supabase/client";
 
 export default function SignInPage() {
@@ -64,13 +65,14 @@ export default function SignInPage() {
                             />
                         </div>
 
-                        <button
+                        <Button
                             type="submit"
-                            disabled={isLoading}
-                            className="w-full rounded-md bg-black px-6 py-2.5 text-sm font-medium text-white hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
+                            isLoading={isLoading}
+                            loadingText="Sending..."
+                            className="w-full"
                         >
-                            {isLoading ? "Sending..." : "Send Magic Link"}
-                        </button>
+                            Send Magic Link
+                        </Button>
                     </form>
 
                     {message && (

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/shared/Button";
 import {
     Dialog,
     DialogContent,
@@ -9,8 +10,8 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/shared/Dialog";
+import { Textarea } from "@/components/shared/Textarea";
 import { trpc } from "@/trpc/client";
 
 export default function CreateTicketDialog() {
@@ -34,9 +35,7 @@ export default function CreateTicketDialog() {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <button className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
-                    Create New Ticket
-                </button>
+                <Button>Create New Ticket</Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
@@ -54,15 +53,14 @@ export default function CreateTicketDialog() {
                         className="min-h-[100px] resize-none"
                         required
                     />
-                    <button
+                    <Button
                         type="submit"
-                        disabled={createTicket.isPending}
-                        className="mt-4 w-full rounded-md bg-black px-6 py-2.5 text-sm font-medium text-white hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
+                        isLoading={createTicket.isPending}
+                        loadingText="Creating..."
+                        className="mt-4 w-full"
                     >
-                        {createTicket.isPending
-                            ? "Creating..."
-                            : "Submit Ticket"}
-                    </button>
+                        Submit Ticket
+                    </Button>
                 </form>
             </DialogContent>
         </Dialog>
