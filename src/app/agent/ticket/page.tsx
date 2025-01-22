@@ -7,7 +7,7 @@ export default async function TicketsPage() {
     const tickets = await trpc.agent.readAllTickets().catch((error) => {
         if (error instanceof TRPCError) {
             if (error.code === "UNAUTHORIZED") {
-                redirect("/sign-in");
+                redirect("/auth/sign-in");
             }
             // TODO: For FORBIDDEN, return null to show blank page
             return null;

@@ -8,7 +8,7 @@ export default async function CustomerTicketsPage() {
     const tickets = await trpc.customer.readAllTickets().catch((error) => {
         if (error instanceof TRPCError) {
             if (error.code === "UNAUTHORIZED") {
-                redirect("/sign-in");
+                redirect("/auth/sign-in");
             }
         }
 

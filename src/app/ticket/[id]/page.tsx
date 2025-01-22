@@ -13,7 +13,7 @@ export default async function CustomerTicketPage({
         .catch((error) => {
             if (error instanceof TRPCError) {
                 if (error.code === "UNAUTHORIZED") {
-                    redirect("/sign-in");
+                    redirect("/auth/sign-in");
                 }
                 // TODO: For FORBIDDEN or NOT_FOUND, return null to show blank page
                 return null;

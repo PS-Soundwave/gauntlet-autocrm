@@ -13,7 +13,7 @@ export default async function TicketPage({
         .catch((error) => {
             if (error instanceof TRPCError) {
                 if (error.code === "UNAUTHORIZED") {
-                    redirect("/sign-in");
+                    redirect("/auth/sign-in");
                 }
                 console.log(error.code);
                 // TODO: For FORBIDDEN or NOT_FOUND, return null to show blank page
