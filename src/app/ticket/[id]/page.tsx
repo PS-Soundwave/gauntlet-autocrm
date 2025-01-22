@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import CustomerTicketContent from "@/components/ticket/CustomerTicketContent";
 import { trpc } from "@/trpc/server";
 
@@ -15,8 +15,10 @@ export default async function CustomerTicketPage({
                 if (error.code === "UNAUTHORIZED") {
                     redirect("/auth/sign-in");
                 }
-                // TODO: For FORBIDDEN or NOT_FOUND, return null to show blank page
-                return null;
+
+                if (error.code === "NOT_FOUND") {
+                    notFound();
+                }
             }
 
             throw error; // Re-throw unexpected errors

@@ -9,8 +9,10 @@ export default async function TicketsPage() {
             if (error.code === "UNAUTHORIZED") {
                 redirect("/auth/sign-in");
             }
-            // TODO: For FORBIDDEN, return null to show blank page
-            return null;
+
+            if (error.code === "FORBIDDEN") {
+                redirect("/");
+            }
         }
 
         throw error; // Re-throw unexpected errors

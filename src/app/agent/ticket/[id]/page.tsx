@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import AgentTicketContent from "@/components/ticket/AgentTicketContent";
 import { trpc } from "@/trpc/server";
 
@@ -16,8 +16,13 @@ export default async function TicketPage({
                     redirect("/auth/sign-in");
                 }
 
-                // TODO: For FORBIDDEN or NOT_FOUND, return null to show blank page
-                return null;
+                if (error.code === "FORBIDDEN") {
+                    redirect("/");
+                }
+
+                if (error.code === "NOT_FOUND") {
+                    notFound();
+                }
             }
 
             throw error; // Re-throw unexpected errors
