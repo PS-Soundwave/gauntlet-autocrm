@@ -14,19 +14,26 @@ import { db } from "@/db";
 import { authedProcedure, router } from "@/trpc";
 
 const agentProcedure = authedProcedure.use(async ({ ctx, next }) => {
-    const user = await db
-        .selectFrom("users")
-        .where("id", "=", ctx.user.id)
-        .selectAll()
-        .executeTakeFirstOrThrow(() => new TRPCError({ code: "UNAUTHORIZED" }));
+    try {
+        const user = await db
+            .selectFrom("users")
+            .where("id", "=", ctx.user.id)
+            .selectAll()
+            .executeTakeFirstOrThrow(
+                () => new TRPCError({ code: "UNAUTHORIZED" })
+            );
 
-    if (user?.role !== "agent") {
-        throw new TRPCError({
-            code: "FORBIDDEN"
-        });
+        if (user?.role !== "agent") {
+            throw new TRPCError({
+                code: "FORBIDDEN"
+            });
+        }
+
+        return next({ ctx });
+    } catch (error) {
+        console.log(error);
+        throw error;
     }
-
-    return next({ ctx });
 });
 
 const agentRouter = router({
