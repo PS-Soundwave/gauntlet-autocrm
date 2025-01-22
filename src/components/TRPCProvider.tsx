@@ -12,7 +12,6 @@ import {
 } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import { useState } from "react";
-import superjson from "superjson";
 import { env } from "@/env";
 import { makeQueryClient } from "@/trpc/query-client";
 import { AppRouter } from "@/trpc/routers/app";
@@ -44,15 +43,13 @@ export default function TRPCProvider({
                 splitLink({
                     condition: (op) => op.type === "subscription",
                     true: unstable_httpSubscriptionLink({
-                        url: "/api/trpc",
-                        transformer: superjson
+                        url: "/api/trpc"
                     }),
                     false: unstable_httpBatchStreamLink({
                         url:
                             typeof window !== "undefined"
                                 ? "/api/trpc"
-                                : `${env.ORIGIN}/api/trpc`,
-                        transformer: superjson
+                                : `${env.ORIGIN}/api/trpc`
                     })
                 })
             ]
