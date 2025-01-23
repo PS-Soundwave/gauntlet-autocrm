@@ -28,18 +28,18 @@ export default async function CustomerTicketsPage() {
         return null;
     }
 
+    const gridTemplateColumns = "minmax(200px, 1fr) minmax(100px, auto)";
+
     return (
         <div className="container mx-auto p-4">
             <div className="mb-6 flex items-center justify-between">
                 <h1 className="text-2xl font-bold">My Support Tickets</h1>
                 <CreateTicketDialog />
             </div>
-            <Table>
+            <Table gridTemplateColumns={gridTemplateColumns}>
                 <TableHeader>
-                    <tr>
-                        <TableHeaderCell>Ticket</TableHeaderCell>
-                        <TableHeaderCell>Status</TableHeaderCell>
-                    </tr>
+                    <TableHeaderCell>Ticket</TableHeaderCell>
+                    <TableHeaderCell>Status</TableHeaderCell>
                 </TableHeader>
                 <TableBody columnCount={2}>
                     {tickets.map((ticket) => (

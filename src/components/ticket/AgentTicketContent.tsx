@@ -5,7 +5,8 @@ import * as ScrollArea from "@radix-ui/react-scroll-area";
 import * as Select from "@radix-ui/react-select";
 import { useParams } from "next/navigation";
 import { useRef, useState } from "react";
-import type { AgentTicket, Message, TicketStatus } from "@/api/types";
+import type { AgentTicket, Message, Skill, TicketStatus } from "@/api/types";
+import { AddSkillButton, SkillPill } from "@/components/shared/SkillPill";
 import StatusBadge from "@/components/shared/StatusBadge";
 import Textarea from "@/components/shared/Textarea";
 import SubmitButton from "@/components/SubmitButton";
@@ -30,9 +31,11 @@ export default function TicketContent({
     const [pendingPriority, setPendingPriority] = useState<
         typeof ticket.priority
     >(ticket.priority);
+    const [pendingSkills, setPendingSkills] = useState<Skill[]>(ticket.skills);
 
     const createMessage = trpc.agent.createTicketMessage.useMutation();
     const updateTicket = trpc.agent.updateTicket.useMutation();
+    const { data: allSkills } = trpc.agent.readAllSkills.useQuery();
     const utils = trpc.useUtils();
 
     const handleSubmit = (newStatus?: TicketStatus): void => {
@@ -53,13 +56,19 @@ export default function TicketContent({
             );
         }
 
-        // If status or priority has changed, update the ticket
-        if (status !== ticket.status || pendingPriority !== ticket.priority) {
+        // If status, priority, or skills have changed, update the ticket
+        if (
+            status !== ticket.status ||
+            pendingPriority !== ticket.priority ||
+            JSON.stringify(pendingSkills.map((s) => s.id).sort()) !==
+                JSON.stringify(ticket.skills.map((s) => s.id).sort())
+        ) {
             promises.push(
                 updateTicket.mutateAsync({
                     ticketId,
                     status,
-                    priority: pendingPriority
+                    priority: pendingPriority,
+                    skills: pendingSkills.map((s) => s.id)
                 })
             );
         }
@@ -73,6 +82,14 @@ export default function TicketContent({
             .finally(() => {
                 setIsSubmitting(false);
             });
+    };
+
+    const handleAddSkill = (skill: Skill) => {
+        setPendingSkills([...pendingSkills, skill]);
+    };
+
+    const handleRemoveSkill = (skillId: string) => {
+        setPendingSkills(pendingSkills.filter((s) => s.id !== skillId));
     };
 
     return (
@@ -174,6 +191,44 @@ export default function TicketContent({
                                         </Select.Content>
                                     </Select.Portal>
                                 </Select.Root>
+                            </div>
+
+                            {/* Skills Section */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">
+                                    Skills
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {pendingSkills.map((skill) => (
+                                        <SkillPill
+                                            key={skill.id}
+                                            skill={skill}
+                                            onRemove={() =>
+                                                handleRemoveSkill(skill.id)
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                                {allSkills && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {allSkills
+                                            .filter(
+                                                (skill) =>
+                                                    !pendingSkills.some(
+                                                        (s) => s.id === skill.id
+                                                    )
+                                            )
+                                            .map((skill) => (
+                                                <AddSkillButton
+                                                    key={skill.id}
+                                                    skill={skill}
+                                                    onClick={() =>
+                                                        handleAddSkill(skill)
+                                                    }
+                                                />
+                                            ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </ScrollArea.Viewport>

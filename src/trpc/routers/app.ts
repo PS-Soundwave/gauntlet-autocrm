@@ -7,6 +7,7 @@ import {
     AgentTicketMetadata,
     CustomerTicket,
     CustomerTicketMetadata,
+    Skill,
     ticketPrioritySchema,
     ticketStatusSchema,
     User,
@@ -45,6 +46,73 @@ const adminRouter = router({
                 .updateTable("users")
                 .set({ role: input.role })
                 .where("id", "=", input.id)
+                .returning(["id"])
+                .executeTakeFirstOrThrow(
+                    () => new TRPCError({ code: "NOT_FOUND" })
+                );
+        }),
+    createSkill: adminProcedure
+        .input(z.object({ name: z.string() }))
+        .mutation(async ({ input }) => {
+            await db
+                .insertInto("skills")
+                .values({ name: input.name })
+                .returning("id")
+                .onConflict((oc) => oc.doNothing())
+                .executeTakeFirstOrThrow(
+                    () => new TRPCError({ code: "CONFLICT" })
+                );
+        }),
+    readAgents: adminProcedure.query(async () => {
+        const agents = await db
+            .selectFrom("users")
+            .where("role", "in", ["agent", "admin"])
+            .select((dbi) => [
+                "id",
+                "name",
+                "role",
+                jsonArrayFrom(
+                    dbi
+                        .selectFrom("agent_skills")
+                        .innerJoin("skills", "skills.id", "agent_skills.skill")
+                        .select(["skills.id", "skills.name"])
+                        .whereRef("agent_skills.agent", "=", "users.id")
+                        .orderBy("skills.name")
+                ).as("skills")
+            ])
+            .orderBy("name")
+            .execute();
+
+        return agents;
+    }),
+    addAgentSkill: adminProcedure
+        .input(z.object({ userId: z.string(), skillId: z.string() }))
+        .mutation(async ({ input }) => {
+            await db
+                .insertInto("agent_skills")
+                .values({
+                    agent: input.userId,
+                    skill: input.skillId
+                })
+                .onConflict((oc) => oc.doNothing())
+                .execute();
+        }),
+    removeAgentSkill: adminProcedure
+        .input(z.object({ userId: z.string(), skillId: z.string() }))
+        .mutation(async ({ input }) => {
+            await db
+                .deleteFrom("agent_skills")
+                .where("agent", "=", input.userId)
+                .where("skill", "=", input.skillId)
+                .execute();
+        }),
+    deleteSkill: adminProcedure
+        .input(z.string())
+        .mutation(async ({ input }) => {
+            await db
+                .deleteFrom("skills")
+                .where("id", "=", input)
+                .returning(["id"])
                 .executeTakeFirstOrThrow(
                     () => new TRPCError({ code: "NOT_FOUND" })
                 );
@@ -68,6 +136,58 @@ const agentProcedure = authedProcedure.use(async ({ ctx, next }) => {
 });
 
 const agentRouter = router({
+    readAllSkills: agentProcedure.query<Skill[]>(async () => {
+        const skills = await db
+            .selectFrom("skills")
+            .select(["id", "name"])
+            .orderBy("name", "asc")
+            .execute();
+
+        return skills;
+    }),
+    readFocusTickets: agentProcedure.query<AgentTicketMetadata[]>(
+        async ({ ctx }) => {
+            // Get tickets that have skills and where all skills are in the agent's skills
+            const tickets = await db
+                .selectFrom("tickets")
+                // Only include tickets that have skills
+                .leftJoin("ticket_skills", "ticket_skills.ticket", "tickets.id")
+                .innerJoin("users", "users.id", "tickets.author")
+                .groupBy([
+                    "tickets.id",
+                    "tickets.status",
+                    "tickets.priority",
+                    "tickets.serial",
+                    "tickets.author",
+                    "tickets.title",
+                    "users.name"
+                ])
+                .having(db.fn.count("ticket_skills.skill"), "=", (dbi) =>
+                    dbi
+                        .selectFrom("ticket_skills as ts")
+                        .whereRef("ts.ticket", "=", "tickets.id")
+                        .where("ts.skill", "in", (dbii) =>
+                            dbii
+                                .selectFrom("agent_skills")
+                                .where("agent_skills.agent", "=", ctx.user.id)
+                                .select("agent_skills.skill")
+                        )
+                        .select(dbi.fn.countAll().as("c"))
+                )
+                .select([
+                    "tickets.id as ticketId",
+                    "tickets.status",
+                    "tickets.priority",
+                    "tickets.serial",
+                    "tickets.author as authorId",
+                    "tickets.title",
+                    "users.name as author"
+                ])
+                .execute();
+
+            return tickets;
+        }
+    ),
     readAllTickets: agentProcedure.query<AgentTicketMetadata[]>(async () => {
         const tickets = await db
             .selectFrom("tickets")
@@ -119,7 +239,19 @@ const agentRouter = router({
                                 "tickets.id"
                             )
                             .orderBy("ticket_messages.serial", "asc")
-                    ).as("messages")
+                    ).as("messages"),
+                    jsonArrayFrom(
+                        dbi
+                            .selectFrom("ticket_skills")
+                            .innerJoin(
+                                "skills",
+                                "skills.id",
+                                "ticket_skills.skill"
+                            )
+                            .select(["skills.id", "skills.name"])
+                            .whereRef("ticket_skills.ticket", "=", "tickets.id")
+                            .orderBy("skills.name")
+                    ).as("skills")
                 ])
                 .executeTakeFirstOrThrow(
                     () => new TRPCError({ code: "NOT_FOUND" })
@@ -132,20 +264,44 @@ const agentRouter = router({
             z.object({
                 ticketId: z.string(),
                 status: ticketStatusSchema,
-                priority: ticketPrioritySchema
+                priority: ticketPrioritySchema,
+                skills: z.array(z.string())
             })
         )
         .mutation(async ({ input }) => {
-            await db
-                .updateTable("tickets")
-                .set({
-                    status: input.status,
-                    priority: input.priority
-                })
-                .where("id", "=", input.ticketId)
-                .executeTakeFirstOrThrow(
-                    () => new TRPCError({ code: "INTERNAL_SERVER_ERROR" })
-                );
+            await db.transaction().execute(async (tx) => {
+                // Update ticket status and priority
+                await tx
+                    .updateTable("tickets")
+                    .set({
+                        status: input.status,
+                        priority: input.priority
+                    })
+                    .where("id", "=", input.ticketId)
+                    .returning(["id"])
+                    .executeTakeFirstOrThrow(
+                        () => new TRPCError({ code: "NOT_FOUND" })
+                    );
+
+                // Delete existing skills
+                await tx
+                    .deleteFrom("ticket_skills")
+                    .where("ticket", "=", input.ticketId)
+                    .execute();
+
+                // Insert new skills
+                if (input.skills.length > 0) {
+                    await tx
+                        .insertInto("ticket_skills")
+                        .values(
+                            input.skills.map((skillId) => ({
+                                ticket: input.ticketId,
+                                skill: skillId
+                            }))
+                        )
+                        .execute();
+                }
+            });
         }),
     createTicketMessage: agentProcedure
         .input(
@@ -164,9 +320,7 @@ const agentRouter = router({
                     author: ctx.user.id,
                     content: input.content
                 })
-                .executeTakeFirstOrThrow(
-                    () => new TRPCError({ code: "INTERNAL_SERVER_ERROR" })
-                );
+                .execute();
         })
 });
 
@@ -202,9 +356,7 @@ const customerRouter = router({
                         author: ctx.user.id,
                         content: input.content
                     })
-                    .executeTakeFirstOrThrow(
-                        () => new TRPCError({ code: "INTERNAL_SERVER_ERROR" })
-                    );
+                    .execute();
             });
         }),
     readAllTickets: authedProcedure.query<CustomerTicketMetadata[]>(
@@ -294,9 +446,7 @@ const customerRouter = router({
                         author: ctx.user.id,
                         content: input.content
                     })
-                    .executeTakeFirstOrThrow(
-                        () => new TRPCError({ code: "INTERNAL_SERVER_ERROR" })
-                    );
+                    .execute();
             });
         })
 });

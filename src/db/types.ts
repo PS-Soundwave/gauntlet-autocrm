@@ -5,6 +5,9 @@ export interface Database {
     tickets: TicketTable;
     ticket_messages: TicketMessagesTable;
     ticket_tags: TicketTagsTable;
+    skills: SkillsTable;
+    agent_skills: AgentSkillsTable;
+    ticket_skills: TicketSkillsTable;
 }
 
 export interface UserTable {
@@ -39,4 +42,22 @@ export interface TicketTagsTable {
     createdAt: Generated<Date>;
     message: string;
     name: string;
+}
+
+export interface SkillsTable {
+    id: Generated<string>;
+    name: string;
+    createdAt: Generated<Date>;
+}
+
+export interface AgentSkillsTable {
+    agent: string;
+    skill: string;
+    createdAt: Generated<Date>;
+}
+
+export interface TicketSkillsTable {
+    ticket: string;
+    skill: string;
+    createdAt: Generated<Date>;
 }

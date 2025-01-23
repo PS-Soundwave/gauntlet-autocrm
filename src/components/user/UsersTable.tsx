@@ -1,7 +1,7 @@
 "use client";
 
 import { User } from "@/api/types";
-import { RoleDropdown } from "@/components/shared/RoleDropdown";
+import { RoleDropdown } from "@/components/RoleDropdown";
 import {
     Table,
     TableBody,
@@ -21,14 +21,15 @@ export const UsersTable = ({ initialUsers }: UsersTableProps) => {
         initialData: initialUsers
     });
 
+    const gridTemplateColumns =
+        "minmax(200px, 1fr) minmax(150px, auto) minmax(100px, auto)";
+
     return (
-        <Table>
+        <Table gridTemplateColumns={gridTemplateColumns}>
             <TableHeader>
-                <tr>
-                    <TableHeaderCell>Name</TableHeaderCell>
-                    <TableHeaderCell>Role</TableHeaderCell>
-                    <TableHeaderCell className="w-10">Actions</TableHeaderCell>
-                </tr>
+                <TableHeaderCell>Name</TableHeaderCell>
+                <TableHeaderCell>Role</TableHeaderCell>
+                <TableHeaderCell center>Actions</TableHeaderCell>
             </TableHeader>
             <TableBody columnCount={3}>
                 {users.map((user) => (
@@ -37,7 +38,7 @@ export const UsersTable = ({ initialUsers }: UsersTableProps) => {
                         <TableCell className="capitalize">
                             {user.role}
                         </TableCell>
-                        <TableCell>
+                        <TableCell center>
                             <RoleDropdown
                                 userId={user.id}
                                 currentRole={user.role}

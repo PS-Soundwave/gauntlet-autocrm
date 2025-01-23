@@ -35,6 +35,7 @@ export type AgentTicketMetadata = AgentTicketCommon & {
 
 export type AgentTicket = AgentTicketCommon & {
     messages: Message[];
+    skills: Skill[];
 };
 
 export type CustomerTicketMetadata = TicketCommon & {
@@ -59,4 +60,16 @@ export type User = {
     id: string;
     name: string;
     role: UserRole;
+};
+
+export type Skill = {
+    id: string;
+    name: string;
+};
+
+export type UpdateTicketInput = {
+    ticketId: string;
+    status: TicketStatus;
+    priority: TicketPriority;
+    skills: string[];
 };

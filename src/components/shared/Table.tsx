@@ -1,19 +1,25 @@
-import { Children, ReactNode } from "react";
+import React, { Children, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface TableProps {
     children: ReactNode;
     className?: string;
+    gridTemplateColumns?: string;
 }
 
-const Table = ({ children, className }: TableProps) => {
+const Table = ({ children, className, gridTemplateColumns }: TableProps) => {
     return (
         <div className="overflow-x-auto">
-            <table
-                className={cn("min-w-full divide-y divide-gray-200", className)}
+            <div
+                className={cn(
+                    "grid min-w-full divide-y divide-gray-200",
+                    className
+                )}
+                style={{ gridTemplateColumns }}
+                role="table"
             >
                 {children}
-            </table>
+            </div>
         </div>
     );
 };
@@ -24,54 +30,62 @@ interface TableHeaderProps {
 }
 
 const TableHeader = ({ children, className }: TableHeaderProps) => {
-    return <thead className={cn("bg-gray-50", className)}>{children}</thead>;
+    return (
+        <div className={cn("contents", className)} role="rowgroup">
+            <div className="contents" role="row">
+                {children}
+            </div>
+        </div>
+    );
 };
 
 interface TableHeaderCellProps {
     children: ReactNode;
     className?: string;
+    center?: boolean;
 }
 
-const TableHeaderCell = ({ children, className }: TableHeaderCellProps) => {
+const TableHeaderCell = ({
+    children,
+    className,
+    center
+}: TableHeaderCellProps) => {
     return (
-        <th
+        <div
             className={cn(
-                "px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500",
+                "flex h-10 items-center bg-gray-50 px-6 text-left text-xs font-medium uppercase tracking-wider text-gray-500",
+                center && "justify-center",
                 className
             )}
+            role="columnheader"
         >
             {children}
-        </th>
+        </div>
     );
 };
 
 interface TableBodyProps {
     children: ReactNode;
-    className?: string;
     columnCount?: number;
 }
 
-const TableBody = ({ children, className, columnCount }: TableBodyProps) => {
+const TableBody = ({ children, columnCount }: TableBodyProps) => {
     const hasItems = Children.count(children) > 0;
 
     return (
-        <tbody
-            className={cn(
-                "bg-white",
-                hasItems && "divide-y divide-gray-200",
-                className
-            )}
-        >
+        <div className="contents" role="rowgroup">
             {hasItems ? (
                 children
             ) : (
-                <tr>
+                <div className="contents" role="row">
                     {[...Array(columnCount || 1)].map((_, i) => (
-                        <td key={i}>{""}</td>
+                        <div key={i} className="bg-white" role="cell">
+                            {""}
+                        </div>
                     ))}
-                </tr>
+                </div>
             )}
-        </tbody>
+        </div>
     );
 };
 
@@ -80,20 +94,49 @@ interface TableRowProps {
     className?: string;
 }
 
-const TableRow = ({ children, className }: TableRowProps) => {
-    return <tr className={cn("hover:bg-gray-50", className)}>{children}</tr>;
+const TableRow = ({ children }: TableRowProps) => {
+    return (
+        <div className="contents" role="row">
+            {React.Children.map(children, (child) => {
+                if (!React.isValidElement(child)) {
+                    return child;
+                }
+                return React.cloneElement(
+                    child as React.ReactElement<{ className?: string }>,
+                    {
+                        className: cn(
+                            (
+                                child as React.ReactElement<{
+                                    className?: string;
+                                }>
+                            ).props.className,
+                            "bg-white hover:bg-gray-50"
+                        )
+                    }
+                );
+            })}
+        </div>
+    );
 };
 
 interface TableCellProps {
     children: ReactNode;
     className?: string;
+    center?: boolean;
 }
 
-const TableCell = ({ children, className }: TableCellProps) => {
+const TableCell = ({ children, className, center }: TableCellProps) => {
     return (
-        <td className={cn("whitespace-nowrap px-6 py-4", className)}>
+        <div
+            className={cn(
+                "flex h-10 items-center px-6",
+                center && "justify-center",
+                className
+            )}
+            role="cell"
+        >
             {children}
-        </td>
+        </div>
     );
 };
 

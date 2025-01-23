@@ -23,9 +23,9 @@ export default async function UsersPage() {
     }
 
     return (
-        <div className="container mx-auto p-4">
-            <h1 className="mb-4 text-2xl font-bold">Users</h1>
+        <>
+            <h1 className="mb-4 text-2xl font-bold">Users Management</h1>
             <UsersTable initialUsers={users} />
-        </div>
+        </>
     );
 }
