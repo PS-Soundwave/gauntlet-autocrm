@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { jsonArrayFrom } from "kysely/helpers/postgres";
+import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/postgres";
 import { uuidv7 } from "uuidv7";
 import { z } from "zod";
 import {
@@ -116,6 +116,80 @@ const adminRouter = router({
                 .executeTakeFirstOrThrow(
                     () => new TRPCError({ code: "NOT_FOUND" })
                 );
+        }),
+    getQueues: adminProcedure.query(async () => {
+        const queues = await db
+            .selectFrom("queues")
+            .leftJoin("queue_agents", "queue_agents.queue", "queues.id")
+            .select((eb) => [
+                "queues.id",
+                "queues.name",
+                eb.fn.count("queue_agents.agent").as("agentCount")
+            ])
+            .groupBy(["queues.id", "queues.name"])
+            .execute();
+
+        return queues;
+    }),
+    createQueue: adminProcedure
+        .input(z.object({ name: z.string() }))
+        .mutation(async ({ input }) => {
+            const queue = await db
+                .insertInto("queues")
+                .values({
+                    id: uuidv7(),
+                    name: input.name,
+                    createdAt: new Date()
+                })
+                .returning(["id", "name"])
+                .executeTakeFirstOrThrow(
+                    () => new TRPCError({ code: "INTERNAL_SERVER_ERROR" })
+                );
+
+            return queue;
+        }),
+    getQueueAgents: adminProcedure
+        .input(z.object({ queueId: z.string() }))
+        .query(async ({ input }) => {
+            const agents = await db
+                .selectFrom("queue_agents")
+                .where("queue", "=", input.queueId)
+                .select(["agent as agentId", "created_at as createdAt"])
+                .execute();
+
+            return agents;
+        }),
+    getAgents: adminProcedure.query(async () => {
+        const agents = await db
+            .selectFrom("users")
+            .where("role", "in", ["agent", "admin"])
+            .select(["id", "name"])
+            .orderBy("name")
+            .execute();
+
+        return agents;
+    }),
+    assignAgentToQueue: adminProcedure
+        .input(z.object({ queueId: z.string(), agentId: z.string() }))
+        .mutation(async ({ input }) => {
+            await db
+                .insertInto("queue_agents")
+                .values({
+                    queue: input.queueId,
+                    agent: input.agentId,
+                    created_at: new Date()
+                })
+                .onConflict((oc) => oc.doNothing())
+                .execute();
+        }),
+    removeAgentFromQueue: adminProcedure
+        .input(z.object({ queueId: z.string(), agentId: z.string() }))
+        .mutation(async ({ input }) => {
+            await db
+                .deleteFrom("queue_agents")
+                .where("queue", "=", input.queueId)
+                .where("agent", "=", input.agentId)
+                .execute();
         })
 });
 
@@ -337,6 +411,7 @@ const agentRouter = router({
             const ticket = await db
                 .selectFrom("tickets")
                 .innerJoin("users", "users.id", "tickets.author")
+                .leftJoin("queue_tickets", "queue_tickets.ticket", "tickets.id")
                 .where("tickets.id", "=", input.id)
                 .select((dbi) => [
                     "tickets.status",
@@ -384,7 +459,13 @@ const agentRouter = router({
                             .select(["id", "name"])
                             .whereRef("ticket_tags.ticket", "=", "tickets.id")
                             .orderBy("name")
-                    ).as("tags")
+                    ).as("tags"),
+                    jsonObjectFrom(
+                        dbi
+                            .selectFrom("queues")
+                            .whereRef("queues.id", "=", "queue_tickets.queue")
+                            .select(["id", "name"])
+                    ).as("queue")
                 ])
                 .executeTakeFirstOrThrow(
                     () => new TRPCError({ code: "NOT_FOUND" })
@@ -503,6 +584,127 @@ const agentRouter = router({
                 .execute();
 
             return tickets;
+        }),
+    readQueueTickets: agentProcedure
+        .input(
+            z.object({
+                tag: z.string().optional(),
+                status: z
+                    .union([ticketStatusSchema, z.literal("not_closed")])
+                    .optional(),
+                priority: ticketPrioritySchema.nullish()
+            })
+        )
+        .query<AgentTicketMetadata[]>(async ({ ctx, input }) => {
+            let query = db
+                .selectFrom("tickets")
+                .innerJoin("users", "users.id", "tickets.author")
+                .innerJoin(
+                    "queue_tickets",
+                    "queue_tickets.ticket",
+                    "tickets.id"
+                )
+                .innerJoin(
+                    "queue_agents",
+                    "queue_agents.queue",
+                    "queue_tickets.queue"
+                )
+                .where("queue_agents.agent", "=", ctx.user.id);
+
+            if (input.tag !== undefined) {
+                query = query.where((dbi) =>
+                    dbi.exists(
+                        dbi
+                            .selectFrom("ticket_tags")
+                            .whereRef("ticket_tags.ticket", "=", "tickets.id")
+                            .where("ticket_tags.name", "=", input.tag ?? "")
+                            .select("ticket_tags.id")
+                    )
+                );
+            }
+
+            if (input.status !== undefined) {
+                if (input.status === "not_closed") {
+                    query = query.where("tickets.status", "!=", "closed");
+                } else {
+                    query = query.where("tickets.status", "=", input.status);
+                }
+            }
+
+            if (input.priority !== undefined) {
+                query = query.where((dbi) => {
+                    if (input.priority === null) {
+                        return dbi("tickets.priority", "is", null);
+                    }
+                    return dbi(
+                        "tickets.priority",
+                        "=",
+                        input.priority as "low" | "medium" | "high" | "urgent"
+                    );
+                });
+            }
+
+            const tickets = await query
+                .select((dbi) => [
+                    "tickets.id as ticketId",
+                    "tickets.status",
+                    "tickets.priority",
+                    "tickets.serial",
+                    "tickets.author as authorId",
+                    "tickets.title",
+                    "users.name as author",
+                    jsonArrayFrom(
+                        dbi
+                            .selectFrom("ticket_tags")
+                            .select(["id", "name"])
+                            .whereRef("ticket_tags.ticket", "=", "tickets.id")
+                            .orderBy("name")
+                    ).as("tags")
+                ])
+                .orderBy("tickets.serial", "asc")
+                .execute();
+
+            return tickets;
+        }),
+    getQueues: agentProcedure.query(async () => {
+        const queues = await db
+            .selectFrom("queues")
+            .select(["id", "name"])
+            .orderBy("name")
+            .execute();
+
+        return queues;
+    }),
+    assignTicketToQueue: agentProcedure
+        .input(
+            z.object({ ticketId: z.string(), queueId: z.string().optional() })
+        )
+        .mutation(async ({ input }) => {
+            if (input.queueId === undefined) {
+                await db
+                    .deleteFrom("queue_tickets")
+                    .where("ticket", "=", input.ticketId)
+                    .execute();
+            } else {
+                const queueId = input.queueId;
+                await db.transaction().execute(async (tx) => {
+                    // Delete existing queue assignment if any
+                    await tx
+                        .deleteFrom("queue_tickets")
+                        .where("ticket", "=", input.ticketId)
+                        .execute();
+
+                    // Insert new queue assignment
+                    await tx
+                        .insertInto("queue_tickets")
+                        .values({
+                            queue: queueId,
+                            ticket: input.ticketId,
+                            created_at: new Date()
+                        })
+                        .execute();
+                });
+            }
         })
 });
 

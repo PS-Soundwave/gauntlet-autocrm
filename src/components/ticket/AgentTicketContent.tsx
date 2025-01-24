@@ -8,6 +8,7 @@ import { useRef, useState } from "react";
 import type {
     AgentTicket,
     Message,
+    Queue,
     Skill,
     TicketStatus,
     TicketTag
@@ -48,10 +49,15 @@ export default function TicketContent({
     >(ticket.priority);
     const [pendingSkills, setPendingSkills] = useState<Skill[]>(ticket.skills);
     const [pendingTags, setPendingTags] = useState<TicketTag[]>(ticket.tags);
+    const [pendingQueue, setPendingQueue] = useState<Queue | null>(
+        ticket.queue
+    );
 
     const createMessage = trpc.agent.createTicketMessage.useMutation();
     const updateTicket = trpc.agent.updateTicket.useMutation();
+    const assignTicketToQueue = trpc.agent.assignTicketToQueue.useMutation();
     const { data: allSkills } = trpc.agent.readAllSkills.useQuery();
+    const { data: queues } = trpc.agent.getQueues.useQuery();
     const utils = trpc.useUtils();
 
     const handleSubmit = (newStatus?: TicketStatus): void => {
@@ -89,6 +95,17 @@ export default function TicketContent({
                     priority: pendingPriority,
                     skills: pendingSkills.map((s) => s.id),
                     tags: pendingTags.map((t) => t.name)
+                })
+            );
+        }
+
+        // If queue has changed, update the queue assignment
+        if ((pendingQueue?.id ?? null) !== (ticket.queue?.id ?? null)) {
+            promises.push(
+                assignTicketToQueue.mutateAsync({
+                    ticketId: id,
+                    queueId:
+                        pendingQueue?.id === null ? undefined : pendingQueue?.id
                 })
             );
         }
@@ -219,6 +236,61 @@ export default function TicketContent({
                                                         Urgent
                                                     </Select.ItemText>
                                                 </Select.Item>
+                                            </Select.Viewport>
+                                        </Select.Content>
+                                    </Select.Portal>
+                                </Select.Root>
+                            </div>
+
+                            {/* Queue Dropdown */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">
+                                    Queue
+                                </label>
+                                <Select.Root
+                                    value={pendingQueue?.id ?? "null"}
+                                    onValueChange={(s) => {
+                                        if (s === "null") {
+                                            setPendingQueue(null);
+                                        } else {
+                                            const queue = queues?.find(
+                                                (q) => q.id === s
+                                            );
+                                            if (queue) {
+                                                setPendingQueue(queue);
+                                            }
+                                        }
+                                    }}
+                                >
+                                    <Select.Trigger className="inline-flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                        <Select.Value placeholder="Select queue..." />
+                                        <Select.Icon>
+                                            <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+                                        </Select.Icon>
+                                    </Select.Trigger>
+
+                                    <Select.Portal>
+                                        <Select.Content className="overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                                            <Select.Viewport className="p-1">
+                                                <Select.Item
+                                                    value="null"
+                                                    className="flex h-8 cursor-pointer items-center rounded px-2 text-sm outline-none hover:bg-gray-50 focus:bg-gray-50"
+                                                >
+                                                    <Select.ItemText>
+                                                        -
+                                                    </Select.ItemText>
+                                                </Select.Item>
+                                                {queues?.map((queue) => (
+                                                    <Select.Item
+                                                        key={queue.id}
+                                                        value={queue.id}
+                                                        className="flex h-8 cursor-pointer items-center rounded px-2 text-sm outline-none hover:bg-gray-50 focus:bg-gray-50"
+                                                    >
+                                                        <Select.ItemText>
+                                                            {queue.name}
+                                                        </Select.ItemText>
+                                                    </Select.Item>
+                                                ))}
                                             </Select.Viewport>
                                         </Select.Content>
                                     </Select.Portal>

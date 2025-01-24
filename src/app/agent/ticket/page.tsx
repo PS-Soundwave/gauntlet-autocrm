@@ -82,6 +82,14 @@ const getTickets = (
         });
     }
 
+    if (view === "queues") {
+        return trpc.agent.readQueueTickets({
+            tag,
+            status,
+            priority: priority === "untriaged" ? null : priority
+        });
+    }
+
     return trpc.agent.readAllTickets({
         tag,
         status,

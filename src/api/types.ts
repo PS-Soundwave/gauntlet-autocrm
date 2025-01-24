@@ -39,10 +39,16 @@ export type TicketTag = {
     name: string;
 };
 
+export type Queue = {
+    id: string;
+    name: string;
+};
+
 export type AgentTicket = AgentTicketCommon & {
     messages: Message[];
     skills: Skill[];
     tags: TicketTag[];
+    queue: Queue | null;
 };
 
 export type CustomerTicketMetadata = TicketCommon & {

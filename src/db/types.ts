@@ -8,6 +8,9 @@ export interface Database {
     skills: SkillsTable;
     agent_skills: AgentSkillsTable;
     ticket_skills: TicketSkillsTable;
+    queues: QueuesTable;
+    queue_agents: QueueAgentsTable;
+    queue_tickets: QueueTicketsTable;
 }
 
 export interface UserTable {
@@ -60,4 +63,22 @@ export interface TicketSkillsTable {
     ticket: string;
     skill: string;
     createdAt: Generated<Date>;
+}
+
+export interface QueuesTable {
+    id: string;
+    name: string;
+    createdAt: Generated<Date>;
+}
+
+export interface QueueAgentsTable {
+    queue: string;
+    agent: string;
+    created_at: Generated<Date>;
+}
+
+export interface QueueTicketsTable {
+    queue: string;
+    ticket: string;
+    created_at: Generated<Date>;
 }

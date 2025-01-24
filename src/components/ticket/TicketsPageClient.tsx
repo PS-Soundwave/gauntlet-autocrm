@@ -42,12 +42,15 @@ const isValidStatus = (
 };
 
 const isValidPriority = (
-    priority: string | null | undefined
-): priority is TicketPriority | null => {
+    priority: string | null
+): priority is TicketPriority | "untriaged" | "" => {
     if (!priority) {
         return true;
     }
-    return ["unassigned", "low", "medium", "high", "urgent"].includes(priority);
+
+    return ["", "untriaged", "low", "medium", "high", "urgent"].includes(
+        priority
+    );
 };
 
 interface TicketsPageClientProps {
@@ -67,22 +70,22 @@ export default function TicketsPageClient({
     const tag = searchParams.get("tag");
     const status = z
         .union([ticketStatusSchema, z.literal("not_closed")])
-        .optional()
         .safeParse(searchParams.get("status"));
     const priority = z
         .union([ticketPrioritySchema, z.literal("untriaged")])
-        .optional()
+        .nullable()
         .safeParse(searchParams.get("priority"));
 
     const { data: tickets } = trpc.agent.readAllTickets.useQuery(
         {
             tag: tag ?? undefined,
             status: status.success ? status.data : undefined,
-            priority: priority.success
-                ? priority.data === "untriaged"
-                    ? null
-                    : priority.data
-                : undefined
+            priority:
+                priority.data === null
+                    ? undefined
+                    : priority.data === "untriaged"
+                      ? null
+                      : priority.data
         },
         {
             initialData: view === "all" ? initialTickets : undefined,
@@ -94,11 +97,7 @@ export default function TicketsPageClient({
         {
             tag: tag ?? undefined,
             status: status.success ? status.data : undefined,
-            priority: priority.success
-                ? priority.data === "untriaged"
-                    ? null
-                    : priority.data
-                : undefined
+            priority: priority.data === "untriaged" ? null : priority.data
         },
         {
             initialData: view === "focus" ? initialTickets : undefined,
@@ -106,7 +105,24 @@ export default function TicketsPageClient({
         }
     );
 
-    const currentTickets = view === "focus" ? focusTickets : tickets;
+    const { data: queueTickets } = trpc.agent.readQueueTickets.useQuery(
+        {
+            tag: tag ?? undefined,
+            status: status.success ? status.data : undefined,
+            priority: priority.data === "untriaged" ? null : priority.data
+        },
+        {
+            initialData: view === "queues" ? initialTickets : undefined,
+            enabled: view === "queues"
+        }
+    );
+
+    const currentTickets =
+        view === "focus"
+            ? focusTickets
+            : view === "queues"
+              ? queueTickets
+              : tickets;
 
     // Get all available tags from the server
     const { data: allTags = [] } = trpc.agent.readAllTicketTags.useQuery();
@@ -136,12 +152,17 @@ export default function TicketsPageClient({
     };
 
     const handlePriorityChange = (newPriority: string | null) => {
-        if (newPriority && !isValidPriority(newPriority)) {
+        if (!isValidPriority(newPriority)) {
             return;
         }
 
+        if (newPriority === null) {
+            return;
+        }
+
+        console.log(newPriority);
         const params = new URLSearchParams(searchParams);
-        if (newPriority) {
+        if (newPriority !== "") {
             params.set("priority", newPriority);
         } else {
             params.delete("priority");
@@ -179,16 +200,8 @@ export default function TicketsPageClient({
                         <option value="closed">Closed</option>
                     </select>
                     <select
-                        value={
-                            priority.success
-                                ? priority.data === null
-                                    ? "untriaged"
-                                    : priority.data
-                                : ""
-                        }
-                        onChange={(e) =>
-                            handlePriorityChange(e.target.value || null)
-                        }
+                        value={priority.data === null ? "" : priority.data}
+                        onChange={(e) => handlePriorityChange(e.target.value)}
                         className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                         <option value="">All Priorities</option>
@@ -213,7 +226,7 @@ export default function TicketsPageClient({
                         ))}
                     </select>
                     <div className="w-[400px]">
-                        <div className="grid w-full grid-cols-2">
+                        <div className="grid w-full grid-cols-3">
                             <button
                                 onClick={() => handleViewChange("all")}
                                 className={`flex h-9 items-center justify-center whitespace-nowrap rounded-l border border-r-0 bg-white px-4 text-sm font-medium ring-offset-white transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
@@ -226,13 +239,23 @@ export default function TicketsPageClient({
                             </button>
                             <button
                                 onClick={() => handleViewChange("focus")}
-                                className={`flex h-9 items-center justify-center whitespace-nowrap rounded-r border bg-white px-4 text-sm font-medium ring-offset-white transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                                className={`flex h-9 items-center justify-center whitespace-nowrap border border-r-0 bg-white px-4 text-sm font-medium ring-offset-white transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
                                     view === "focus"
                                         ? "border-gray-200 bg-gray-100 text-gray-900"
                                         : "border-gray-200 text-gray-500"
                                 }`}
                             >
                                 Focus
+                            </button>
+                            <button
+                                onClick={() => handleViewChange("queues")}
+                                className={`flex h-9 items-center justify-center whitespace-nowrap rounded-r border bg-white px-4 text-sm font-medium ring-offset-white transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                                    view === "queues"
+                                        ? "border-gray-200 bg-gray-100 text-gray-900"
+                                        : "border-gray-200 text-gray-500"
+                                }`}
+                            >
+                                My Queues
                             </button>
                         </div>
                     </div>
