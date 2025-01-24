@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 interface PriorityBadgeProps {
-    priority: string | null;
+    priority: "urgent" | "high" | "medium" | "low" | null;
     className?: string;
 }
 

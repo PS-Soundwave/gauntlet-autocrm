@@ -9,7 +9,7 @@ export default async function TicketPage({
     params: Promise<{ id: string }>;
 }) {
     const ticket = await trpc.agent
-        .readTicket((await params).id)
+        .readTicket({ id: (await params).id })
         .catch((error) => {
             if (error instanceof TRPCError) {
                 if (error.code === "UNAUTHORIZED") {

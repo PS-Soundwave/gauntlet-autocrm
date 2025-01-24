@@ -1,64 +1,37 @@
 import { TRPCError } from "@trpc/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import CreateTicketDialog from "@/components/CreateTicketDialog";
-import StatusBadge from "@/components/shared/StatusBadge";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHeader,
-    TableHeaderCell,
-    TableRow
-} from "@/components/shared/Table";
+import { z } from "zod";
+import { ticketStatusSchema } from "@/api/types";
+import CustomerTicketsPageClient from "@/components/ticket/CustomerTicketsPageClient";
 import { trpc } from "@/trpc/server";
 
-export default async function CustomerTicketsPage() {
-    const tickets = await trpc.customer.readAllTickets().catch((error) => {
-        if (error instanceof TRPCError) {
-            if (error.code === "UNAUTHORIZED") {
-                redirect("/auth/sign-in");
-            }
-        }
+export default async function CustomerTicketsPage({
+    searchParams
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+    const status = z
+        .union([ticketStatusSchema, z.literal("not_closed")])
+        .optional()
+        .safeParse((await searchParams).status);
 
-        throw error; // Re-throw unexpected errors
-    });
+    const tickets = await trpc.customer
+        .readAllTickets({
+            status: status.success ? status.data : undefined
+        })
+        .catch((error) => {
+            if (error instanceof TRPCError) {
+                if (error.code === "UNAUTHORIZED") {
+                    redirect("/auth/sign-in");
+                }
+            }
+
+            throw error; // Re-throw unexpected errors
+        });
 
     if (!tickets) {
         return null;
     }
 
-    const gridTemplateColumns = "minmax(200px, 1fr) minmax(100px, auto)";
-
-    return (
-        <div className="container mx-auto p-4">
-            <div className="mb-6 flex items-center justify-between">
-                <h1 className="text-2xl font-bold">My Support Tickets</h1>
-                <CreateTicketDialog />
-            </div>
-            <Table gridTemplateColumns={gridTemplateColumns}>
-                <TableHeader>
-                    <TableHeaderCell>Ticket</TableHeaderCell>
-                    <TableHeaderCell>Status</TableHeaderCell>
-                </TableHeader>
-                <TableBody columnCount={2}>
-                    {tickets.map((ticket) => (
-                        <TableRow key={ticket.ticketId}>
-                            <TableCell>
-                                <Link
-                                    href={`/ticket/${ticket.ticketId}`}
-                                    className="text-blue-600 hover:text-blue-800"
-                                >
-                                    {ticket.title}
-                                </Link>
-                            </TableCell>
-                            <TableCell>
-                                <StatusBadge status={ticket.status} />
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
-    );
+    return <CustomerTicketsPageClient initialTickets={tickets} />;
 }

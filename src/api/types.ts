@@ -31,11 +31,18 @@ export type AgentTicketCommon = TicketCommon & {
 
 export type AgentTicketMetadata = AgentTicketCommon & {
     ticketId: string;
+    tags: TicketTag[];
+};
+
+export type TicketTag = {
+    id: string;
+    name: string;
 };
 
 export type AgentTicket = AgentTicketCommon & {
     messages: Message[];
     skills: Skill[];
+    tags: TicketTag[];
 };
 
 export type CustomerTicketMetadata = TicketCommon & {
@@ -50,6 +57,7 @@ export type Message = {
     author: string;
     authorId: string;
     content: string;
+    type: "internal" | "public";
 };
 
 export const userRoleSchema = z.enum(["agent", "customer", "admin"]);
@@ -72,4 +80,5 @@ export type UpdateTicketInput = {
     status: TicketStatus;
     priority: TicketPriority;
     skills: string[];
+    tags: string[];
 };

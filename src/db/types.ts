@@ -39,8 +39,8 @@ export interface TicketMessagesTable {
 
 export interface TicketTagsTable {
     id: Generated<string>;
+    ticket: string;
     createdAt: Generated<Date>;
-    message: string;
     name: string;
 }
 

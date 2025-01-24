@@ -107,11 +107,11 @@ const adminRouter = router({
                 .execute();
         }),
     deleteSkill: adminProcedure
-        .input(z.string())
+        .input(z.object({ id: z.string() }))
         .mutation(async ({ input }) => {
             await db
                 .deleteFrom("skills")
-                .where("id", "=", input)
+                .where("id", "=", input.id)
                 .returning(["id"])
                 .executeTakeFirstOrThrow(
                     () => new TRPCError({ code: "NOT_FOUND" })
@@ -145,14 +145,72 @@ const agentRouter = router({
 
         return skills;
     }),
-    readFocusTickets: agentProcedure.query<AgentTicketMetadata[]>(
-        async ({ ctx }) => {
+    readAllTicketTags: agentProcedure.query(async () => {
+        const tags = await db
+            .selectFrom("ticket_tags")
+            .select("name")
+            .distinct()
+            .orderBy("name", "asc")
+            .execute()
+            .then((r) => r.map((t) => t.name));
+
+        return tags;
+    }),
+    readFocusTickets: agentProcedure
+        .input(
+            z.object({
+                tag: z.string().optional(),
+                status: z
+                    .union([ticketStatusSchema, z.literal("not_closed")])
+                    .optional(),
+                priority: ticketPrioritySchema.nullish()
+            })
+        )
+        .query<AgentTicketMetadata[]>(async ({ ctx, input }) => {
             // Get tickets that have skills and where all skills are in the agent's skills
-            const tickets = await db
+            let query = db
                 .selectFrom("tickets")
-                // Only include tickets that have skills
-                .leftJoin("ticket_skills", "ticket_skills.ticket", "tickets.id")
                 .innerJoin("users", "users.id", "tickets.author")
+                .leftJoin(
+                    "ticket_skills",
+                    "ticket_skills.ticket",
+                    "tickets.id"
+                );
+
+            if (input.tag !== undefined) {
+                query = query.where((dbi) =>
+                    dbi.exists(
+                        dbi
+                            .selectFrom("ticket_tags")
+                            .whereRef("ticket_tags.ticket", "=", "tickets.id")
+                            .where("ticket_tags.name", "=", input.tag ?? "")
+                            .select("ticket_tags.id")
+                    )
+                );
+            }
+
+            if (input.status !== undefined) {
+                if (input.status === "not_closed") {
+                    query = query.where("tickets.status", "!=", "closed");
+                } else {
+                    query = query.where("tickets.status", "=", input.status);
+                }
+            }
+
+            if (input.priority !== undefined) {
+                query = query.where((dbi) => {
+                    if (input.priority === null) {
+                        return dbi("tickets.priority", "is", null);
+                    }
+                    return dbi(
+                        "tickets.priority",
+                        "=",
+                        input.priority as "low" | "medium" | "high" | "urgent"
+                    );
+                });
+            }
+
+            const tickets = await query
                 .groupBy([
                     "tickets.id",
                     "tickets.status",
@@ -174,45 +232,112 @@ const agentRouter = router({
                         )
                         .select(dbi.fn.countAll().as("c"))
                 )
-                .select([
+                .select((dbi) => [
                     "tickets.id as ticketId",
                     "tickets.status",
                     "tickets.priority",
                     "tickets.serial",
                     "tickets.author as authorId",
                     "tickets.title",
-                    "users.name as author"
+                    "users.name as author",
+                    jsonArrayFrom(
+                        dbi
+                            .selectFrom("ticket_tags")
+                            .whereRef("ticket_tags.ticket", "=", "tickets.id")
+                            .select(["id", "name"])
+                            .orderBy("name")
+                    ).as("tags")
                 ])
+                .orderBy("tickets.serial", "asc")
                 .execute();
 
             return tickets;
-        }
-    ),
-    readAllTickets: agentProcedure.query<AgentTicketMetadata[]>(async () => {
-        const tickets = await db
-            .selectFrom("tickets")
-            .innerJoin("users", "users.id", "tickets.author")
-            .select([
-                "tickets.id as ticketId",
-                "tickets.status",
-                "tickets.priority",
-                "tickets.serial",
-                "tickets.author as authorId",
-                "tickets.title",
-                "users.name as author"
-            ])
-            .orderBy("tickets.serial", "asc")
-            .execute();
+        }),
+    readAllTickets: agentProcedure
+        .input(
+            z.object({
+                tag: z.string().optional(),
+                status: z
+                    .union([ticketStatusSchema, z.literal("not_closed")])
+                    .optional(),
+                priority: ticketPrioritySchema.nullish()
+            })
+        )
+        .query<AgentTicketMetadata[]>(async ({ input }) => {
+            let query = db
+                .selectFrom("tickets")
+                .innerJoin("users", "users.id", "tickets.author");
 
-        return tickets;
-    }),
+            if (input.tag !== undefined) {
+                query = query.where((dbi) =>
+                    dbi.exists(
+                        dbi
+                            .selectFrom("ticket_tags")
+                            .whereRef("ticket_tags.ticket", "=", "tickets.id")
+                            .where("ticket_tags.name", "=", input.tag ?? "")
+                            .select("ticket_tags.id")
+                    )
+                );
+            }
+            if (input.status !== undefined) {
+                if (input.status === "not_closed") {
+                    query = query.where("tickets.status", "!=", "closed");
+                } else {
+                    query = query.where("tickets.status", "=", input.status);
+                }
+            }
+
+            if (input.priority !== undefined) {
+                query = query.where((dbi) => {
+                    if (input.priority === null) {
+                        return dbi("tickets.priority", "is", null);
+                    }
+                    return dbi(
+                        "tickets.priority",
+                        "=",
+                        input.priority as "low" | "medium" | "high" | "urgent"
+                    );
+                });
+            }
+
+            const tickets = await query
+                .groupBy([
+                    "tickets.id",
+                    "tickets.status",
+                    "tickets.priority",
+                    "tickets.serial",
+                    "tickets.author",
+                    "tickets.title",
+                    "users.name"
+                ])
+                .select((dbi) => [
+                    "tickets.id as ticketId",
+                    "tickets.status",
+                    "tickets.priority",
+                    "tickets.serial",
+                    "tickets.author as authorId",
+                    "tickets.title",
+                    "users.name as author",
+                    jsonArrayFrom(
+                        dbi
+                            .selectFrom("ticket_tags")
+                            .select(["id", "name"])
+                            .whereRef("ticket_tags.ticket", "=", "tickets.id")
+                            .orderBy("name")
+                    ).as("tags")
+                ])
+                .orderBy("tickets.serial", "asc")
+                .execute();
+
+            return tickets;
+        }),
     readTicket: agentProcedure
-        .input(z.string())
+        .input(z.object({ id: z.string() }))
         .query<AgentTicket>(async ({ input }) => {
             const ticket = await db
                 .selectFrom("tickets")
                 .innerJoin("users", "users.id", "tickets.author")
-                .where("tickets.id", "=", input)
+                .where("tickets.id", "=", input.id)
                 .select((dbi) => [
                     "tickets.status",
                     "tickets.priority",
@@ -231,7 +356,8 @@ const agentRouter = router({
                             .select([
                                 "ticket_messages.author as authorId",
                                 "users.name as author",
-                                "content"
+                                "content",
+                                "ticket_messages.type"
                             ])
                             .whereRef(
                                 "ticket_messages.ticket",
@@ -251,7 +377,14 @@ const agentRouter = router({
                             .select(["skills.id", "skills.name"])
                             .whereRef("ticket_skills.ticket", "=", "tickets.id")
                             .orderBy("skills.name")
-                    ).as("skills")
+                    ).as("skills"),
+                    jsonArrayFrom(
+                        dbi
+                            .selectFrom("ticket_tags")
+                            .select(["id", "name"])
+                            .whereRef("ticket_tags.ticket", "=", "tickets.id")
+                            .orderBy("name")
+                    ).as("tags")
                 ])
                 .executeTakeFirstOrThrow(
                     () => new TRPCError({ code: "NOT_FOUND" })
@@ -262,10 +395,11 @@ const agentRouter = router({
     updateTicket: agentProcedure
         .input(
             z.object({
-                ticketId: z.string(),
+                id: z.string(),
                 status: ticketStatusSchema,
                 priority: ticketPrioritySchema,
-                skills: z.array(z.string())
+                skills: z.array(z.string()),
+                tags: z.array(z.string())
             })
         )
         .mutation(async ({ input }) => {
@@ -277,7 +411,7 @@ const agentRouter = router({
                         status: input.status,
                         priority: input.priority
                     })
-                    .where("id", "=", input.ticketId)
+                    .where("id", "=", input.id)
                     .returning(["id"])
                     .executeTakeFirstOrThrow(
                         () => new TRPCError({ code: "NOT_FOUND" })
@@ -286,7 +420,7 @@ const agentRouter = router({
                 // Delete existing skills
                 await tx
                     .deleteFrom("ticket_skills")
-                    .where("ticket", "=", input.ticketId)
+                    .where("ticket", "=", input.id)
                     .execute();
 
                 // Insert new skills
@@ -295,8 +429,27 @@ const agentRouter = router({
                         .insertInto("ticket_skills")
                         .values(
                             input.skills.map((skillId) => ({
-                                ticket: input.ticketId,
+                                ticket: input.id,
                                 skill: skillId
+                            }))
+                        )
+                        .execute();
+                }
+
+                // Delete existing tags
+                await tx
+                    .deleteFrom("ticket_tags")
+                    .where("ticket", "=", input.id)
+                    .execute();
+
+                // Insert new tags
+                if (input.tags.length > 0) {
+                    await tx
+                        .insertInto("ticket_tags")
+                        .values(
+                            input.tags.map((name) => ({
+                                ticket: input.id,
+                                name
                             }))
                         )
                         .execute();
@@ -306,21 +459,50 @@ const agentRouter = router({
     createTicketMessage: agentProcedure
         .input(
             z.object({
-                ticketId: z.string(),
-                content: z.string()
+                id: z.string(),
+                content: z.string(),
+                type: z.enum(["internal", "public"])
             })
         )
         .mutation(async ({ ctx, input }) => {
             await db
                 .insertInto("ticket_messages")
                 .values({
-                    ticket: input.ticketId,
+                    ticket: input.id,
                     serial: uuidv7(),
-                    type: "public",
+                    type: input.type,
                     author: ctx.user.id,
                     content: input.content
                 })
                 .execute();
+        }),
+    readTicketsByAuthor: agentProcedure
+        .input(z.object({ authorId: z.string() }))
+        .query<AgentTicketMetadata[]>(async ({ input }) => {
+            const tickets = await db
+                .selectFrom("tickets")
+                .innerJoin("users", "users.id", "tickets.author")
+                .where("tickets.author", "=", input.authorId)
+                .select((dbi) => [
+                    "tickets.id as ticketId",
+                    "tickets.status",
+                    "tickets.priority",
+                    "tickets.serial",
+                    "tickets.author as authorId",
+                    "tickets.title",
+                    "users.name as author",
+                    jsonArrayFrom(
+                        dbi
+                            .selectFrom("ticket_tags")
+                            .select(["id", "name"])
+                            .whereRef("ticket_tags.ticket", "=", "tickets.id")
+                            .orderBy("name")
+                    ).as("tags")
+                ])
+                .orderBy("tickets.serial", "desc")
+                .execute();
+
+            return tickets;
         })
 });
 
@@ -359,9 +541,16 @@ const customerRouter = router({
                     .execute();
             });
         }),
-    readAllTickets: authedProcedure.query<CustomerTicketMetadata[]>(
-        async ({ ctx }) => {
-            const tickets = await db
+    readAllTickets: authedProcedure
+        .input(
+            z.object({
+                status: z
+                    .union([ticketStatusSchema, z.literal("not_closed")])
+                    .optional()
+            })
+        )
+        .query<CustomerTicketMetadata[]>(async ({ ctx, input }) => {
+            let query = db
                 .selectFrom("tickets")
                 .innerJoin("users", "users.id", "tickets.author")
                 .select([
@@ -371,20 +560,29 @@ const customerRouter = router({
                     "tickets.title",
                     "users.name as author"
                 ])
-                .where("tickets.author", "=", ctx.user.id)
+                .where("tickets.author", "=", ctx.user.id);
+
+            if (input.status !== undefined) {
+                if (input.status === "not_closed") {
+                    query = query.where("tickets.status", "!=", "closed");
+                } else {
+                    query = query.where("tickets.status", "=", input.status);
+                }
+            }
+
+            const tickets = await query
                 .orderBy("tickets.serial", "asc")
                 .execute();
 
             return tickets;
-        }
-    ),
+        }),
     readTicket: authedProcedure
-        .input(z.string())
+        .input(z.object({ id: z.string() }))
         .query<CustomerTicket>(async ({ ctx, input }) => {
             const ticket = await db
                 .selectFrom("tickets")
                 .innerJoin("users", "users.id", "tickets.author")
-                .where("tickets.id", "=", input)
+                .where("tickets.id", "=", input.id)
                 .where("tickets.author", "=", ctx.user.id)
                 .select((dbi) => [
                     "tickets.status",
@@ -402,7 +600,8 @@ const customerRouter = router({
                             .select([
                                 "ticket_messages.author as authorId",
                                 "users.name as author",
-                                "content"
+                                "content",
+                                "ticket_messages.type"
                             ])
                             .whereRef(
                                 "ticket_messages.ticket",
@@ -422,7 +621,7 @@ const customerRouter = router({
     createTicketMessage: authedProcedure
         .input(
             z.object({
-                ticketId: z.string(),
+                id: z.string(),
                 content: z.string()
             })
         )
@@ -430,7 +629,7 @@ const customerRouter = router({
             await db.transaction().execute(async (tx) => {
                 await tx
                     .selectFrom("tickets")
-                    .where("id", "=", input.ticketId)
+                    .where("id", "=", input.id)
                     .where("author", "=", ctx.user.id)
                     .select([])
                     .executeTakeFirstOrThrow(
@@ -440,7 +639,7 @@ const customerRouter = router({
                 await tx
                     .insertInto("ticket_messages")
                     .values({
-                        ticket: input.ticketId,
+                        ticket: input.id,
                         serial: uuidv7(),
                         type: "public",
                         author: ctx.user.id,

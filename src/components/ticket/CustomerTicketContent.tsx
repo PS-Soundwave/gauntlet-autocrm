@@ -17,12 +17,15 @@ const CustomerTicketContent = ({
     const [messageInput, setMessageInput] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const params = useParams();
-    const ticketId = params.id as string;
+    const id = params.id as string;
 
-    const { data: ticket } = trpc.customer.readTicket.useQuery(ticketId, {
-        initialData: initialTicket,
-        refetchOnMount: false
-    });
+    const { data: ticket } = trpc.customer.readTicket.useQuery(
+        { id },
+        {
+            initialData: initialTicket,
+            refetchOnMount: false
+        }
+    );
 
     const createMessage = trpc.customer.createTicketMessage.useMutation();
     const utils = trpc.useUtils();
@@ -37,11 +40,11 @@ const CustomerTicketContent = ({
 
         createMessage
             .mutateAsync({
-                ticketId,
+                id,
                 content: trimmedMessage
             })
             .then(() => {
-                utils.customer.readTicket.invalidate(ticketId);
+                utils.customer.readTicket.invalidate({ id });
                 setMessageInput("");
             })
             .finally(() => {

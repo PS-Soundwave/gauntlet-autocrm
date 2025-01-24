@@ -41,7 +41,7 @@ export const SkillsTable = ({ initialSkills }: SkillsTableProps) => {
 
     const handleDelete = (id: string) => {
         setDeletingId(id);
-        deleteSkill(id);
+        deleteSkill({ id });
     };
 
     const gridTemplateColumns = "minmax(200px, 1fr) minmax(100px, auto)";
