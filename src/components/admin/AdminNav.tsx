@@ -3,10 +3,10 @@
 import { Tabs } from "@/components/shared/Tabs";
 
 const tabs = [
-    { name: "Users", href: "/user" },
-    { name: "Agents", href: "/agent" },
-    { name: "Skills", href: "/skill" },
-    { name: "Queues", href: "/queue" }
+    { name: "Users", href: "/admin/user" },
+    { name: "Agents", href: "/admin/agent" },
+    { name: "Skills", href: "/admin/skill" },
+    { name: "Queues", href: "/admin/queue" }
 ];
 
 export default function AdminNav() {

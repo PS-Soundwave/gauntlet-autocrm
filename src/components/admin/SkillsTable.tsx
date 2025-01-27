@@ -34,7 +34,8 @@ export const SkillsTable = ({ initialSkills }: SkillsTableProps) => {
             setDeletingId(null);
             utils.agent.readAllSkills.invalidate();
         },
-        onError: () => {
+        onError: (error) => {
+            console.error("Error deleting skill", error);
             setDeletingId(null);
         }
     });

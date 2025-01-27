@@ -1,5 +1,5 @@
+import CreateSkillDialog from "@/components/admin/CreateSkillDialog";
 import { TableSkeleton } from "@/components/shared/Loading";
-import CreateSkillDialog from "@/components/skill/CreateSkillDialog";
 
 export default function Loading() {
     return (

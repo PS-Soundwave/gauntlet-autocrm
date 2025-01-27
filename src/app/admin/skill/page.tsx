@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { redirect } from "next/navigation";
-import CreateSkillDialog from "@/components/skill/CreateSkillDialog";
-import { SkillsTable } from "@/components/skill/SkillsTable";
+import CreateSkillDialog from "@/components/admin/CreateSkillDialog";
+import { SkillsTable } from "@/components/admin/SkillsTable";
 import { trpc } from "@/trpc/server";
 
 export default async function SkillsPage() {
