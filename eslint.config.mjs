@@ -163,7 +163,6 @@ const config = [
             "prefer-spread": "error",
             "prefer-template": "error",
             radix: ["error", "as-needed"],
-            "require-await": "error",
             "require-unicode-regexp": ["error", { requireFlag: "v" }],
             "require-yield": "error",
             "vars-on-top": "error",

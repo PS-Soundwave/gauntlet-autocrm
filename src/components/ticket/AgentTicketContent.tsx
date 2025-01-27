@@ -114,6 +114,9 @@ export default function TicketContent({
         Promise.all(promises)
             .then(() => {
                 utils.agent.readTicket.invalidate({ id });
+                utils.agent.readFocusTickets.refetch();
+                utils.agent.readQueueTickets.refetch();
+                utils.agent.readAllTickets.refetch();
                 setMessageInput("");
             })
             .finally(() => {

@@ -7,7 +7,6 @@ import {
     ticketPrioritySchema,
     ticketStatusSchema,
     type AgentTicketMetadata,
-    type TicketPriority,
     type TicketTag
 } from "@/api/types";
 import PriorityBadge from "@/components/shared/PriorityBadge";
@@ -23,42 +22,8 @@ import {
 import { TagPill } from "@/components/shared/TagPill";
 import { trpc } from "@/trpc/client";
 
-type TicketStatus =
-    | "open"
-    | "in_progress"
-    | "pending"
-    | "closed"
-    | "not_closed";
-
-const isValidStatus = (
-    status: string | null | undefined
-): status is TicketStatus | null => {
-    if (!status) {
-        return true;
-    }
-    return ["open", "in_progress", "pending", "closed", "not_closed"].includes(
-        status
-    );
-};
-
-const isValidPriority = (
-    priority: string | null
-): priority is TicketPriority | "untriaged" | "" => {
-    if (!priority) {
-        return true;
-    }
-
-    return ["", "untriaged", "low", "medium", "high", "urgent"].includes(
-        priority
-    );
-};
-
 interface TicketsPageClientProps {
     initialTickets: AgentTicketMetadata[];
-    initialView: string;
-    initialTag: string | undefined;
-    initialStatus: TicketStatus | undefined;
-    initialPriority: TicketPriority | undefined;
 }
 
 export default function TicketsPageClient({
@@ -66,10 +31,14 @@ export default function TicketsPageClient({
 }: TicketsPageClientProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const view = searchParams.get("view") ?? "all";
+    const view = z
+        .union([z.literal("focus"), z.literal("queues")])
+        .nullable()
+        .safeParse(searchParams.get("view"));
     const tag = searchParams.get("tag");
     const status = z
         .union([ticketStatusSchema, z.literal("not_closed")])
+        .nullable()
         .safeParse(searchParams.get("status"));
     const priority = z
         .union([ticketPrioritySchema, z.literal("untriaged")])
@@ -79,50 +48,54 @@ export default function TicketsPageClient({
     const { data: tickets } = trpc.agent.readAllTickets.useQuery(
         {
             tag: tag ?? undefined,
-            status: status.success ? status.data : undefined,
-            priority:
-                priority.data === null
-                    ? undefined
-                    : priority.data === "untriaged"
-                      ? null
-                      : priority.data
+            status: status.success ? (status.data ?? undefined) : undefined,
+            priority: priority.success
+                ? priority.data === "untriaged"
+                    ? null
+                    : (priority.data ?? undefined)
+                : undefined
         },
         {
-            initialData: view === "all" ? initialTickets : undefined,
-            enabled: view === "all"
+            initialData:
+                view.success && view.data === null ? initialTickets : undefined
         }
     );
 
     const { data: focusTickets } = trpc.agent.readFocusTickets.useQuery(
         {
             tag: tag ?? undefined,
-            status: status.success ? status.data : undefined,
-            priority: priority.data === "untriaged" ? null : priority.data
+            status: status.success ? (status.data ?? undefined) : undefined,
+            priority: priority.success
+                ? priority.data === "untriaged"
+                    ? null
+                    : (priority.data ?? undefined)
+                : undefined
         },
         {
-            initialData: view === "focus" ? initialTickets : undefined,
-            enabled: view === "focus"
+            initialData:
+                view.success && view.data === "focus"
+                    ? initialTickets
+                    : undefined
         }
     );
 
     const { data: queueTickets } = trpc.agent.readQueueTickets.useQuery(
         {
             tag: tag ?? undefined,
-            status: status.success ? status.data : undefined,
-            priority: priority.data === "untriaged" ? null : priority.data
+            status: status.success ? (status.data ?? undefined) : undefined,
+            priority: priority.success
+                ? priority.data === "untriaged"
+                    ? null
+                    : (priority.data ?? undefined)
+                : undefined
         },
         {
-            initialData: view === "queues" ? initialTickets : undefined,
-            enabled: view === "queues"
+            initialData:
+                view.success && view.data === "queues"
+                    ? initialTickets
+                    : undefined
         }
     );
-
-    const currentTickets =
-        view === "focus"
-            ? focusTickets
-            : view === "queues"
-              ? queueTickets
-              : tickets;
 
     // Get all available tags from the server
     const { data: allTags = [] } = trpc.agent.readAllTicketTags.useQuery();
@@ -137,13 +110,9 @@ export default function TicketsPageClient({
         router.push(`/agent/ticket?${params.toString()}`);
     };
 
-    const handleStatusChange = (newStatus: string | null) => {
-        if (newStatus && !isValidStatus(newStatus)) {
-            return;
-        }
-
+    const handleStatusChange = (newStatus: string) => {
         const params = new URLSearchParams(searchParams);
-        if (newStatus) {
+        if (newStatus !== "") {
             params.set("status", newStatus);
         } else {
             params.delete("status");
@@ -151,16 +120,7 @@ export default function TicketsPageClient({
         router.push(`/agent/ticket?${params.toString()}`);
     };
 
-    const handlePriorityChange = (newPriority: string | null) => {
-        if (!isValidPriority(newPriority)) {
-            return;
-        }
-
-        if (newPriority === null) {
-            return;
-        }
-
-        console.log(newPriority);
+    const handlePriorityChange = (newPriority: string) => {
         const params = new URLSearchParams(searchParams);
         if (newPriority !== "") {
             params.set("priority", newPriority);
@@ -172,11 +132,23 @@ export default function TicketsPageClient({
 
     const handleViewChange = (newView: string) => {
         const params = new URLSearchParams(searchParams);
-        params.set("view", newView);
+        if (newView !== "") {
+            params.set("view", newView);
+        } else {
+            params.delete("view");
+        }
         router.push(`/agent/ticket?${params.toString()}`);
     };
 
-    if (!currentTickets) {
+    const currentTickets = view.success
+        ? view.data === "focus"
+            ? focusTickets
+            : view.data === "queues"
+              ? queueTickets
+              : tickets
+        : undefined;
+
+    if (currentTickets === undefined) {
         return null;
     }
 
@@ -186,10 +158,8 @@ export default function TicketsPageClient({
                 <h1 className="text-2xl font-bold">Support Tickets</h1>
                 <div className="flex gap-4">
                     <select
-                        value={status.success ? status.data : ""}
-                        onChange={(e) =>
-                            handleStatusChange(e.target.value || null)
-                        }
+                        value={status.success ? (status.data ?? "") : ""}
+                        onChange={(e) => handleStatusChange(e.target.value)}
                         className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                         <option value="">All Statuses</option>
@@ -200,7 +170,7 @@ export default function TicketsPageClient({
                         <option value="closed">Closed</option>
                     </select>
                     <select
-                        value={priority.data === null ? "" : priority.data}
+                        value={priority.success ? (priority.data ?? "") : ""}
                         onChange={(e) => handlePriorityChange(e.target.value)}
                         className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
@@ -213,9 +183,7 @@ export default function TicketsPageClient({
                     </select>
                     <select
                         value={tag ?? ""}
-                        onChange={(e) =>
-                            handleTagChange(e.target.value || null)
-                        }
+                        onChange={(e) => handleTagChange(e.target.value)}
                         className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                         <option value="">All Tags</option>
@@ -228,9 +196,9 @@ export default function TicketsPageClient({
                     <div className="w-[400px]">
                         <div className="grid w-full grid-cols-3">
                             <button
-                                onClick={() => handleViewChange("all")}
+                                onClick={() => handleViewChange("")}
                                 className={`flex h-9 items-center justify-center whitespace-nowrap rounded-l border border-r-0 bg-white px-4 text-sm font-medium ring-offset-white transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-                                    view === "all"
+                                    view.success && view.data === null
                                         ? "border-gray-200 bg-gray-100 text-gray-900"
                                         : "border-gray-200 text-gray-500"
                                 }`}
@@ -240,7 +208,7 @@ export default function TicketsPageClient({
                             <button
                                 onClick={() => handleViewChange("focus")}
                                 className={`flex h-9 items-center justify-center whitespace-nowrap border border-r-0 bg-white px-4 text-sm font-medium ring-offset-white transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-                                    view === "focus"
+                                    view.success && view.data === "focus"
                                         ? "border-gray-200 bg-gray-100 text-gray-900"
                                         : "border-gray-200 text-gray-500"
                                 }`}
@@ -250,7 +218,7 @@ export default function TicketsPageClient({
                             <button
                                 onClick={() => handleViewChange("queues")}
                                 className={`flex h-9 items-center justify-center whitespace-nowrap rounded-r border bg-white px-4 text-sm font-medium ring-offset-white transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-                                    view === "queues"
+                                    view.success && view.data === "queues"
                                         ? "border-gray-200 bg-gray-100 text-gray-900"
                                         : "border-gray-200 text-gray-500"
                                 }`}

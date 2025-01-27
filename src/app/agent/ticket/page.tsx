@@ -16,9 +16,11 @@ export default async function TicketsPage({
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
     const params = await searchParams;
-    const view =
-        (Array.isArray(params.view) ? params.view[0] : params.view) ?? "all";
-    const tag = Array.isArray(params.tag) ? params.tag[0] : params.tag;
+    const view = z
+        .union([z.literal("focus"), z.literal("queues")])
+        .optional()
+        .safeParse(params.view);
+    const tag = z.string().optional().safeParse(params.tag);
     const status = z
         .union([ticketStatusSchema, z.literal("not_closed")])
         .optional()
@@ -28,13 +30,13 @@ export default async function TicketsPage({
         .optional()
         .safeParse((await searchParams).priority);
 
-    if (!status.success || !priority.success) {
+    if (!view.success || !tag.success || !status.success || !priority.success) {
         redirect("/agent/ticket");
     }
 
     const tickets = await getTickets(
-        view,
-        tag,
+        view.data,
+        tag.data,
         status.data,
         priority.data
     ).catch((error: unknown) => {
@@ -52,24 +54,14 @@ export default async function TicketsPage({
     });
 
     if (!tickets) {
-        return null; // Return blank page for forbidden
+        return null;
     }
 
-    return (
-        <TicketsPageClient
-            initialTickets={tickets}
-            initialView={view}
-            initialTag={tag}
-            initialStatus={status.data}
-            initialPriority={
-                priority.data === "untriaged" ? null : priority.data
-            }
-        />
-    );
+    return <TicketsPageClient initialTickets={tickets} />;
 }
 
 const getTickets = (
-    view: string,
+    view?: "focus" | "queues",
     tag?: string,
     status?: TicketStatus | "not_closed",
     priority?: TicketPriority | "untriaged"

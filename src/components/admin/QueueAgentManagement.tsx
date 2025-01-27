@@ -39,14 +39,14 @@ export default function QueueAgentManagement({
     onOpenChange
 }: QueueAgentManagementProps) {
     const utils = trpc.useUtils();
-    const { data: agents } = trpc.admin.getAgents.useQuery();
-    const { data: queueAgents } = trpc.admin.getQueueAgents.useQuery({
+    const { data: agents } = trpc.admin.readAgents.useQuery();
+    const { data: queueAgents } = trpc.admin.readQueueAgents.useQuery({
         queueId
     });
 
     const assignAgent = trpc.admin.assignAgentToQueue.useMutation({
         onSuccess: () => {
-            utils.admin.getQueueAgents.invalidate({ queueId });
+            utils.admin.readQueueAgents.invalidate({ queueId });
             // TODO: Patch fix for sync update of agent counts
             utils.admin.getQueues.invalidate();
         }
@@ -54,7 +54,7 @@ export default function QueueAgentManagement({
 
     const removeAgent = trpc.admin.removeAgentFromQueue.useMutation({
         onSuccess: () => {
-            utils.admin.getQueueAgents.invalidate({ queueId });
+            utils.admin.readQueueAgents.invalidate({ queueId });
             // TODO: Patch fix for sync update of agent counts
             utils.admin.getQueues.invalidate();
         }

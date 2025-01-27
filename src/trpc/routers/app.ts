@@ -148,7 +148,7 @@ const adminRouter = router({
 
             return queue;
         }),
-    getQueueAgents: adminProcedure
+    readQueueAgents: adminProcedure
         .input(z.object({ queueId: z.string() }))
         .query(async ({ input }) => {
             const agents = await db
@@ -159,16 +159,6 @@ const adminRouter = router({
 
             return agents;
         }),
-    getAgents: adminProcedure.query(async () => {
-        const agents = await db
-            .selectFrom("users")
-            .where("role", "in", ["agent", "admin"])
-            .select(["id", "name"])
-            .orderBy("name")
-            .execute();
-
-        return agents;
-    }),
     assignAgentToQueue: adminProcedure
         .input(z.object({ queueId: z.string(), agentId: z.string() }))
         .mutation(async ({ input }) => {
