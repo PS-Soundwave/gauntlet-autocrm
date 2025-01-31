@@ -14,6 +14,7 @@ import {
     userRoleSchema
 } from "@/api/types";
 import { db } from "@/db";
+import { smartAssign } from "@/services/smartAssign";
 import { authedProcedure, router } from "@/trpc";
 
 const adminProcedure = authedProcedure.use(async ({ ctx, next }) => {
@@ -52,11 +53,21 @@ const adminRouter = router({
                 );
         }),
     createSkill: adminProcedure
-        .input(z.object({ name: z.string() }))
+        .input(
+            z.object({
+                name: z.string(),
+                description: z.string().optional(),
+                smartAssign: z.boolean()
+            })
+        )
         .mutation(async ({ input }) => {
             await db
                 .insertInto("skills")
-                .values({ name: input.name })
+                .values({
+                    name: input.name,
+                    description: input.description,
+                    smart_assign: input.smartAssign
+                })
                 .returning("id")
                 .onConflict((oc) => oc.doNothing())
                 .executeTakeFirstOrThrow(
@@ -124,21 +135,36 @@ const adminRouter = router({
             .select((eb) => [
                 "queues.id",
                 "queues.name",
+                "queues.description",
+                "queues.smart_assign as smartAssign",
                 eb.fn.count("queue_agents.agent").as("agentCount")
             ])
-            .groupBy(["queues.id", "queues.name"])
+            .groupBy([
+                "queues.id",
+                "queues.name",
+                "queues.description",
+                "queues.smart_assign"
+            ])
             .execute();
 
         return queues;
     }),
     createQueue: adminProcedure
-        .input(z.object({ name: z.string() }))
+        .input(
+            z.object({
+                name: z.string(),
+                description: z.string().optional(),
+                smartAssign: z.boolean()
+            })
+        )
         .mutation(async ({ input }) => {
             const queue = await db
                 .insertInto("queues")
                 .values({
                     id: uuidv7(),
                     name: input.name,
+                    description: input.description,
+                    smart_assign: input.smartAssign,
                     createdAt: new Date()
                 })
                 .returning(["id", "name"])
@@ -147,6 +173,17 @@ const adminRouter = router({
                 );
 
             return queue;
+        }),
+    deleteQueue: adminProcedure
+        .input(z.object({ id: z.string() }))
+        .mutation(async ({ input }) => {
+            await db
+                .deleteFrom("queues")
+                .where("id", "=", input.id)
+                .returning(["id"])
+                .executeTakeFirstOrThrow(
+                    () => new TRPCError({ code: "NOT_FOUND" })
+                );
         }),
     readQueueAgents: adminProcedure
         .input(z.object({ queueId: z.string() }))
@@ -203,11 +240,19 @@ const agentRouter = router({
     readAllSkills: agentProcedure.query<Skill[]>(async () => {
         const skills = await db
             .selectFrom("skills")
-            .select(["id", "name"])
+            .select([
+                "id",
+                "name",
+                "description",
+                "smart_assign as smartAssign"
+            ])
             .orderBy("name", "asc")
             .execute();
 
-        return skills;
+        return skills.map((skill) => ({
+            ...skill,
+            description: skill.description || undefined
+        }));
     }),
     readAllTicketTags: agentProcedure.query(async () => {
         const tags = await db
@@ -439,7 +484,12 @@ const agentRouter = router({
                                 "skills.id",
                                 "ticket_skills.skill"
                             )
-                            .select(["skills.id", "skills.name"])
+                            .select([
+                                "skills.id",
+                                "skills.name",
+                                "skills.description",
+                                "skills.smart_assign as smartAssign"
+                            ])
                             .whereRef("ticket_skills.ticket", "=", "tickets.id")
                             .orderBy("skills.name")
                     ).as("skills"),
@@ -461,7 +511,13 @@ const agentRouter = router({
                     () => new TRPCError({ code: "NOT_FOUND" })
                 );
 
-            return ticket;
+            return {
+                ...ticket,
+                skills: ticket.skills.map((skill) => ({
+                    ...skill,
+                    description: skill.description || undefined
+                }))
+            };
         }),
     updateTicket: agentProcedure
         .input(
@@ -731,6 +787,37 @@ const customerRouter = router({
                         content: input.content
                     })
                     .execute();
+
+                // Use smart assignment to determine skills and queue
+                const smartAssignResult = await smartAssign({
+                    ticketTitle: input.title,
+                    ticketContent: input.content
+                });
+
+                // Assign skills if any were found
+                if (smartAssignResult.skillIds.length > 0) {
+                    await tx
+                        .insertInto("ticket_skills")
+                        .values(
+                            smartAssignResult.skillIds.map((skillId) => ({
+                                ticket: ticket.id,
+                                skill: skillId
+                            }))
+                        )
+                        .execute();
+                }
+
+                // Assign queue if one was found
+                if (smartAssignResult.queueId !== null) {
+                    await tx
+                        .insertInto("queue_tickets")
+                        .values({
+                            queue: smartAssignResult.queueId,
+                            ticket: ticket.id,
+                            created_at: new Date()
+                        })
+                        .execute();
+                }
             });
         }),
     readAllTickets: authedProcedure

@@ -25,12 +25,10 @@ export default function SignInPage() {
 
             if (error) {
                 setMessage("Error sending magic link");
-                console.error(error);
             } else {
                 setMessage("Check your email for the magic link!");
             }
-        } catch (error) {
-            console.error(error);
+        } catch {
             setMessage("An unexpected error occurred");
         } finally {
             setIsLoading(false);

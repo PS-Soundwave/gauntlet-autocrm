@@ -79,6 +79,8 @@ export type User = {
 export type Skill = {
     id: string;
     name: string;
+    description?: string;
+    smartAssign: boolean;
 };
 
 export type UpdateTicketInput = {

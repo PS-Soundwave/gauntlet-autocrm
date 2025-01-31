@@ -2,6 +2,7 @@
 
 import { TrashIcon } from "@radix-ui/react-icons";
 import { useState } from "react";
+import { Skill } from "@/api/types";
 import { Button } from "@/components/shared/Button";
 import {
     Table,
@@ -12,11 +13,6 @@ import {
     TableRow
 } from "@/components/shared/Table";
 import { trpc } from "@/trpc/client";
-
-interface Skill {
-    id: string;
-    name: string;
-}
 
 interface SkillsTableProps {
     initialSkills: Skill[];
@@ -34,8 +30,7 @@ export const SkillsTable = ({ initialSkills }: SkillsTableProps) => {
             setDeletingId(null);
             utils.agent.readAllSkills.invalidate();
         },
-        onError: (error) => {
-            console.error("Error deleting skill", error);
+        onError: () => {
             setDeletingId(null);
         }
     });
@@ -45,18 +40,25 @@ export const SkillsTable = ({ initialSkills }: SkillsTableProps) => {
         deleteSkill({ id });
     };
 
-    const gridTemplateColumns = "minmax(200px, 1fr) minmax(100px, auto)";
+    const gridTemplateColumns =
+        "minmax(200px, 1fr) minmax(200px, 1fr) minmax(100px, auto) minmax(100px, auto)";
 
     return (
         <Table gridTemplateColumns={gridTemplateColumns}>
             <TableHeader>
                 <TableHeaderCell>Name</TableHeaderCell>
+                <TableHeaderCell>Description</TableHeaderCell>
+                <TableHeaderCell>Smart Assign</TableHeaderCell>
                 <TableHeaderCell center>Actions</TableHeaderCell>
             </TableHeader>
-            <TableBody columnCount={2}>
+            <TableBody columnCount={4}>
                 {skills.map((skill) => (
                     <TableRow key={skill.id}>
                         <TableCell>{skill.name}</TableCell>
+                        <TableCell>{skill.description}</TableCell>
+                        <TableCell>
+                            {skill.smartAssign ? "On" : "Off"}
+                        </TableCell>
                         <TableCell center>
                             <Button
                                 className="h-8 w-8 bg-transparent p-0 text-gray-500 hover:bg-gray-100 hover:text-red-600 disabled:hover:bg-transparent disabled:hover:text-gray-500"

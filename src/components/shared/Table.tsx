@@ -9,10 +9,10 @@ interface TableProps {
 
 const Table = ({ children, className, gridTemplateColumns }: TableProps) => {
     return (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-hidden">
             <div
                 className={cn(
-                    "grid min-w-full divide-y divide-gray-200",
+                    "grid-auto-rows-auto grid min-w-full divide-y divide-gray-200",
                     className
                 )}
                 style={{ gridTemplateColumns }}

@@ -25,7 +25,6 @@ export default async function SkillsPage() {
 
     return (
         <>
-            <h1 className="mb-4 text-2xl font-bold">Skills Management</h1>
             <div className="space-y-4">
                 <CreateSkillDialog />
                 <SkillsTable initialSkills={skills} />

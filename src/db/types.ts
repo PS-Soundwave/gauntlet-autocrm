@@ -50,6 +50,8 @@ export interface TicketTagsTable {
 export interface SkillsTable {
     id: Generated<string>;
     name: string;
+    description: string | null;
+    smart_assign: boolean;
     createdAt: Generated<Date>;
 }
 
@@ -68,6 +70,8 @@ export interface TicketSkillsTable {
 export interface QueuesTable {
     id: string;
     name: string;
+    description: string | null;
+    smart_assign: boolean;
     createdAt: Generated<Date>;
 }
 
