@@ -86,7 +86,11 @@ const adminRouter = router({
                     dbi
                         .selectFrom("agent_skills")
                         .innerJoin("skills", "skills.id", "agent_skills.skill")
-                        .select(["skills.id", "skills.name"])
+                        .select([
+                            "skills.id",
+                            "skills.name",
+                            "skills.smart_assign as smartAssign"
+                        ])
                         .whereRef("agent_skills.agent", "=", "users.id")
                         .orderBy("skills.name")
                 ).as("skills")
